@@ -1,0 +1,24 @@
+# Runtime
+logs/
+kanobot/__pycache__/
+__pycache__/
+
+# Docker
+.dockerignore
+Dockerfile
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+.*un~
+
+# CI
+circle.yml
+
+# Config
+config/config.ini
+config/webhook.json

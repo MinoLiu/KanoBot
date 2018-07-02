@@ -1,0 +1,20 @@
+machine:
+  services:
+    - docker
+
+dependencies:
+  override:
+    - docker info
+    - docker build --rm=false -t sean2525/kanobot .
+
+test:
+  override:
+    - docker run -d sean2525/kanobot; sleep 10
+    # TODO Add REAL tests - docker exec
+
+deployment:
+  hub:
+    branch: master
+    commands:
+      - docker login -u "$DOCKER_USER" -p "$DOCKER_PASS"
+      - docker push sean2525/kanobot

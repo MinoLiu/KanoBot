@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[dev-packages]
+autopep8 = "*"
+pylint = "*"
+
+[requires]
+python_version = "3.6.5"
+
+[packages]
+colorlog = "*"
+tweepy = "*"
+
+[packages."discord.py"]
+ref = "rewrite"
+git = "https://github.com/Rapptz/discord.py"

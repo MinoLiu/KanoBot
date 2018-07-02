@@ -3,6 +3,17 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+.vscode
+.*un~
+config.ini
+permission.ini
+twitter.json
+logs
+blacklist.txt
+banned.txt
+bind.txt
+webhook.json
+
 # C extensions
 *.so
 
