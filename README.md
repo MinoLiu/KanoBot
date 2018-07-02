@@ -12,6 +12,18 @@ A bot for discord.
 - [ ] Roles management
 - [ ] Meme
 - [ ] More cmd
+- [ ] Bot status
+
+## Support command
+1. id
+2. joinserver
+3. kick
+4. purge
+5. reload_twitter
+6. set_twitter
+7. setavatar
+8. setname
+9. restart
 
 ## Installation
 
@@ -41,7 +53,7 @@ cp config/example_config.ini config/config.ini
 Token = bot_token
 ```
 
-- Support twitter feature must Must be completed this
+- Support twitter feature must be completed this
 
 ```ini
 ; Enable twitter webhook
