@@ -1,53 +1,43 @@
 from tweepy.streaming import StreamListener
-from tweepy import OAuthHandler
 from tweepy.api import API
-import calendar
 import datetime
 import time
 import random
 import json
-from time import gmtime, strftime
-from datetime import datetime
-import html
 import requests
 import logging
+
 from .jsonIO import JsonIO
+
+from time import gmtime, strftime
+from datetime import datetime
+from threading import Thread
 
 LOG = logging.getLogger(__name__)
 
 
-class Webhook():
-    def __init__(self, url):
-        """
-        Initialize a Discord Webhook object.
-        @param {String} url - The webhook url where to make requests.
-        """
-        self.url = url
-
-    def post(self, data):
-        """
-        Send the JSON formated object to the specified `self.url`.
-        """
-        result = requests.post(self.url, data=data)
-
-        if 200 <= result.status_code <= 299 or result.text == "ok":
-            return True
-        else:
-            try:
-                jsonResult = json.loads(result.text)
-                if jsonResult['message'] == 'You are being rate limited.':
-                    print(jsonResult)
-                    wait = int(jsonResult['retry_after'])
-                    wait = wait/1000 + 0.1
-                    time.sleep(wait)
-                    self.post(data)
-                else:
-                    LOG.warning('{}\n{}\n{}\n'.format(
-                        str(result.text), type(result.text), result.text))
-            except:
-                # raise Exception("Error on post : " + str(result))
-                LOG.warning('Unhandled Error! Look into this {}\n{}\n{}\n'.format(
+def webhook_post(url, data):
+    """
+    Send the JSON formated object to the url.
+    """
+    result = requests.post(url, data=data)
+    if 200 <= result.status_code <= 299 or result.text == "ok":
+        return True
+    else:
+        try:
+            jsonResult = json.loads(result.text)
+            if jsonResult['message'] == 'You are being rate limited.':
+                print(jsonResult)
+                wait = int(jsonResult['retry_after'])
+                wait = wait/1000 + 0.1
+                time.sleep(wait)
+                webhook_post(url, data)
+            else:
+                LOG.warning('{}\n{}\n{}\n'.format(
                     str(result.text), type(result.text), result.text))
+        except:
+            LOG.warning('Unhandled Error! Look into this {}\n{}\n{}\n'.format(
+                str(result.text), type(result.text), result.text))
 
 
 class StdOutListener(StreamListener):
@@ -72,19 +62,19 @@ class StdOutListener(StreamListener):
         for dataDiscord in self.dataD.get('Discord', []):
             if data['user']['id_str'] != dataDiscord['twitter_id']:
                 worthPosting = False
-                if 'IncludeReplyToUser' in dataDiscord:  # other Twitter user tweeting to your followed Twitter user
-                    if dataDiscord['IncludeReplyToUser'] == True:
+                if 'includeReplyToUser' in dataDiscord:  # other Twitter user tweeting to your followed Twitter user
+                    if dataDiscord['includeReplyToUser'] == True:
                         if data['in_reply_to_user_id_str'] == dataDiscord['twitter_id']:
                             worthPosting = True
             else:
                 worthPosting = True
                 # your followed Twitter users tweeting to random Twitter users (relevant if you only want status updates/opt out of conversations)
-                if 'IncludeUserReply' in dataDiscord:
-                    if dataDiscord['IncludeUserReply'] == False and data['in_reply_to_user_id'] is not None:
+                if 'includeUserReply' in dataDiscord:
+                    if dataDiscord['includeUserReply'] == False and data['in_reply_to_user_id'] is not None:
                         worthPosting = False
 
-            if 'IncludeRetweet' in dataDiscord:  # retweets...
-                if dataDiscord['IncludeRetweet'] == False:
+            if 'includeRetweet' in dataDiscord:  # retweets...
+                if dataDiscord['includeRetweet'] == False:
                     if 'retweeted_status' in data:
                         worthPosting = False  # retweet
 
@@ -98,9 +88,8 @@ class StdOutListener(StreamListener):
             url = "https://twitter.com/" + \
                 data['user']['screen_name'] + \
                 "/status/" + str(data['id_str'])
-
-            wh = Webhook(url=wh_url)
-            wh.post({'username': username, 'avatar_url': avatar_url, 'content': url})
+            Thread(target=webhook_post, args=(wh_url, {
+                   'username': username, 'avatar_url': avatar_url, 'content': url})).start()
         return True
 
     def on_connect(self):

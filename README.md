@@ -14,17 +14,6 @@ A bot for discord.
 - [ ] More cmd
 - [ ] Bot status
 
-## Support command
-1. id
-2. joinserver
-3. kick
-4. purge
-5. reload_twitter
-6. set_twitter
-7. setavatar
-8. setname
-9. restart
-
 ## Installation
 
 ```bash
@@ -92,7 +81,7 @@ docker-compose up -d
 ## Usage
 
 ```bash
-# See available command
+# See available commands
 !help
 
 # Show bot invite link

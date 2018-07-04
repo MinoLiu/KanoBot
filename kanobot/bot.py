@@ -135,7 +135,8 @@ class Bot(discord.Client):
         ))
         logging.getLogger(__package__).setLevel(logging.DEBUG)
         shandler.setLevel(self.config.debug_level)
-        fh = logging.FileHandler(filename='logs/kanobot.log', encoding='utf-8', mode='w')
+        fh = logging.FileHandler(
+            filename='logs/kanobot.log', encoding='utf-8', mode='w')
         fh.setLevel(self.config.debug_level)
         logging.getLogger(__package__).addHandler(fh)
         logging.getLogger(__package__).addHandler(shandler)
@@ -202,7 +203,7 @@ class Bot(discord.Client):
         self.twitter = API(self.config.twitter_auth)
         self.twitter_listener = StdOutListener(data)
         self.twitter_stream = Stream(
-            self.config.twitter_auth, self.twitter_listener, retry_420=10)
+            self.config.twitter_auth, self.twitter_listener, retry_420=60)
         if data.get('twitter_ids', []):
             self.twitter_stream.filter(
                 list(set(data.get('twitter_ids'))), None, True)
@@ -214,7 +215,7 @@ class Bot(discord.Client):
         await asyncio.sleep(10)
         del self.twitter_stream
         self.twitter_stream = Stream(
-            self.config.twitter_auth, self.twitter_listener, retry_420=10)
+            self.config.twitter_auth, self.twitter_listener, retry_420=60)
         if data.get('twitter_ids', []):
             self.twitter_stream.filter(
                 list(set(data.get('twitter_ids'))), None, True)
@@ -489,14 +490,8 @@ class Bot(discord.Client):
                     )
 
                 docs = dedent(docs)
-                text = '```\n{}\n```'.format(docs.format(
+                content = '```\n{}\n```'.format(docs.format(
                     command_prefix=self.config.command_prefix))
-                if self.config.embeds:
-                    content = self._gen_embed()
-                    content.title = command
-                    content.description = text
-                else:
-                    content = text
                 await self.safe_send_message(
                     message.channel,
                     content,
@@ -796,7 +791,7 @@ class Kanobot(Bot):
                     "```\n{}```".format(
                         dedent(cmd.__doc__)
                     ).format(command_prefix=self.config.command_prefix),
-                    delete_after=60
+                    embed=False
                 )
             else:
                 return Response("No such command", delete_after=10)
@@ -829,17 +824,17 @@ class Kanobot(Bot):
             helpmsg += ", ".join(commands)
             helpmsg += "```\n\nYou can use `{}help x` for more info about each command." \
                 .format(self.config.command_prefix)
-        return Response(helpmsg, reply=True)
+        return Response(helpmsg, reply=True, embed=False)
 
     @admin_only
     @require_twitter
-    async def cmd_set_twitter(self, guild, action, name, new_channel_name=None, includeReplyToUser=None, includeUserReply=None, includeRetweet=None):
+    async def cmd_settwitter(self, guild, action, name, new_channel_name=None, includeReplyToUser=None, includeUserReply=None, includeRetweet=None):
         """
         Usage:
-            {command_prefix}set_twitter [+, -] [name] | optional [new_channel_name] [includeReplyToUser] [includeUserReply] [includeRetweet]
-            {command_prefix}set_twitter + [name]
-            {command_prefix}set_twitter + [name] [new_channel_name] True True True
-            {command_prefix}set_twitter - [name]
+            {command_prefix}settwitter [+, -] [name] | optional [new_channel_name] [includeReplyToUser] [includeUserReply] [includeRetweet]
+            {command_prefix}settwitter + [name]
+            {command_prefix}settwitter + [name] [new_channel_name] True True True
+            {command_prefix}settwitter - [name] [new_channel_name] False True True
         Add webhook to subscribe twitter user status
         """
         actions = ['+', '-']
@@ -848,17 +843,17 @@ class Kanobot(Bot):
         if new_channel_name and (len(new_channel_name) > 32 or len(new_channel_name) < 2):
             return Response('Invalid channel name, Must be between 2 and 32 in length', reply=True, delete_after=20)
 
-        if includeReplyToUser is not None:
+        if includeReplyToUser and str(includeReplyToUser).lower()[0] == 't':
             includeReplyToUser = True
         else:
             includeReplyToUser = False
 
-        if includeUserReply is not None:
+        if includeUserReply and str(includeUserReply).lower()[0] == 't':
             includeUserReply = True
         else:
             includeUserReply = False
 
-        if includeRetweet is not None:
+        if includeRetweet and str(includeRetweet).lower()[0] == 't':
             includeRetweet = True
         else:
             includeRetweet = False
@@ -919,6 +914,7 @@ class Kanobot(Bot):
                 'webhook_url': webhook_obj.url,
                 'webhook_id': webhook_obj.id,
                 'twitter_id': user_obj.id_str,
+                'twitter_name': user_obj.screen_name,
                 'includeReplyToUser': includeReplyToUser,
                 'includeUserReply': includeUserReply,
                 'includeRetweet': includeRetweet})
@@ -940,6 +936,35 @@ class Kanobot(Bot):
 
         await self._reload_twitter()
         return Response("{} :ok_hand:\n\n{}\n".format("Subscribe" if action == '+' else "Unsubscribe", user_obj.name))
+
+    @require_twitter
+    async def cmd_twitter(self, guild):
+        """
+        Usage:
+            {command_prefix}twitter
+        See all subscribed twitter users
+        """
+        data = self.jsonIO.get(self.config.webhook_file)
+        if not data.get('Discord', None):
+            return Response('No subscribed twitter!')
+        subscribed = []
+        for dataD in data['Discord']:
+            if dataD['guild_id'] == guild.id:
+                user_obj = self.twitter.get_user(dataD['twitter_id'])
+                subscribed.append(user_obj._json)
+
+        text = ''
+        for user in subscribed:
+            text += '{}(@{}) \nhttps://twitter.com/{} \n'.format(
+                user['name'].replace('_', r'\_'),
+                user['screen_name'].replace('_', r'\_'),
+                user['screen_name'])
+
+        else:
+            if text == '':
+                return Response('No subscribed twitter!')
+            else:
+                return Response(text, embed=False)
 
     @admin_only
     @require_twitter

@@ -2,7 +2,7 @@ version: '3'
 
 services:
   bot:
-    image: sean2525/kanobot
+    image: sean2525/kanobot:latest
     restart: unless-stopped
     volumes:
       - ./config:/app/config
