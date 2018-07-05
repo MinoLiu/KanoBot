@@ -3,7 +3,9 @@
 [![CircleCI](https://circleci.com/gh/Sean2525/KanoBot/tree/master.svg?style=shield)](https://circleci.com/gh/Sean2525/KanoBot/tree/master)
 [![license:mit](https://img.shields.io/badge/license-mit-blue.svg)](https://opensource.org/licenses/MIT)
 
-A bot for discord.
+Kanobot is a Discord bot written in Python and use rewrite version ![discord.py](https://discordpy.readthedocs.io/en/rewrite/)  
+Adapted from ![Just-Some-Bots/MusicBot](https://github.com/Just-Some-Bots/MusicBot) and ![DiscordMusicBot/MusicBot](https://github.com/DiscordMusicBot/MusicBot)  
+But remove the music features.
 
 ## TODO List
 

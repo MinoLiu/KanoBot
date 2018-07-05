@@ -1,3 +1,4 @@
+# from https://github.com/NNTin/discord-twitter-bot
 from tweepy.streaming import StreamListener
 from tweepy.api import API
 import datetime
