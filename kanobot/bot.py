@@ -85,6 +85,8 @@ class Bot(discord.Client):
 
     def _cleanup(self):
         try:
+            if self.twitter_stream:
+                self.twitter_stream.disconnect()
             self.loop.run_until_complete(self.logout())
         except:
             pass
@@ -557,7 +559,6 @@ class Bot(discord.Client):
         return await super().logout()
 
     async def restart(self):
-        """ TODO """
         self.exit_signal = exceptions.RestartSignal
         await self.logout()
 
@@ -707,8 +708,7 @@ class Kanobot(Bot):
         msg = await self.safe_send_message(channel, "\N{WAVING HAND SIGN} Restarting.")
         await asyncio.sleep(3)
         await self.safe_delete_message(msg)
-        self.exit_signal = exceptions.RestartSignal()
-        await self.logout()
+        await self.restart()
 
     @owner_only
     async def cmd_setname(self, leftover_args, name):
