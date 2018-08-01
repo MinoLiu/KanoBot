@@ -1,6 +1,4 @@
 # from https://github.com/NNTin/discord-twitter-bot
-from tweepy.streaming import StreamListener
-from tweepy.api import API
 import datetime
 import time
 import random
@@ -13,6 +11,10 @@ from .jsonIO import JsonIO
 from time import gmtime, strftime
 from datetime import datetime
 from threading import Thread
+
+from tweepy.streaming import StreamListener
+from tweepy.api import API
+from tweepy import Stream
 
 LOG = logging.getLogger(__name__)
 
@@ -108,3 +110,26 @@ class StdOutListener(StreamListener):
         LOG.warning(
             'Twitter stream on error({}) retry in few second.'.format(status_code))
         return
+
+    def on_timeout(self):
+        """Called when stream connection times out"""
+        LOG.warning(
+            'Twitter stream connection times out')
+        return
+    
+    def keep_alive(self):
+        """Called when a keep-alive arrived"""
+        LOG.debug(
+            'Twitter stream keep-alive')
+        return
+
+
+class StdOutStream(Stream):
+    def __init__(self, auth, listener, **options):
+        super().__init__(auth, listener, **options)
+
+    def on_closed(self, resp):
+        """ Called when the response has been closed by Twitter """
+        LOG.warning(
+            'Twitter stream has been closed by Twitter')
+        pass
