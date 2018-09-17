@@ -15,8 +15,7 @@ from functools import wraps
 from textwrap import dedent
 
 from tweepy.api import API
-from tweepy import Stream
-from .twitter import StdOutListener
+from .twitter import StdOutListener, StdOutStream
 
 from . import exceptions
 from .config import Config, ConfigDefaults
@@ -204,7 +203,7 @@ class Bot(discord.Client):
         data = self.jsonIO.get(self.config.webhook_file)
         self.twitter = API(self.config.twitter_auth)
         self.twitter_listener = StdOutListener(data)
-        self.twitter_stream = Stream(
+        self.twitter_stream = StdOutStream(
             self.config.twitter_auth, self.twitter_listener, retry_420=60)
         if data.get('twitter_ids', []):
             self.twitter_stream.filter(
@@ -216,7 +215,7 @@ class Bot(discord.Client):
         self.twitter_stream.disconnect()
         await asyncio.sleep(10)
         del self.twitter_stream
-        self.twitter_stream = Stream(
+        self.twitter_stream = StdOutStream(
             self.config.twitter_auth, self.twitter_listener, retry_420=60)
         if data.get('twitter_ids', []):
             self.twitter_stream.filter(
@@ -828,20 +827,47 @@ class Kanobot(Bot):
 
     @admin_only
     @require_twitter
-    async def cmd_settwitter(self, guild, action, name, new_channel_name=None, includeReplyToUser=None, includeUserReply=None, includeRetweet=None):
+    async def cmd_twitter(self, guild, action, name=None, channel_name=None, includeReplyToUser=None, includeUserReply=None, includeRetweet=None):
         """
         Usage:
-            {command_prefix}settwitter [+, -] [name] | optional [new_channel_name] [includeReplyToUser] [includeUserReply] [includeRetweet]
-            {command_prefix}settwitter + [name]
-            {command_prefix}settwitter + [name] [new_channel_name] True True True
-            {command_prefix}settwitter - [name] [new_channel_name] False True True
-        Add webhook to subscribe twitter user status
+            {command_prefix}twitter [+, -, show, reload]
+            {command_prefix}twitter + [name] [channel_name] | boolean [ReplyToUser] [Reply] [Retweet]
+            {command_prefix}twitter + [name] [channel_name] False True True
+            {command_prefix}twitter - [name]
+            {command_prefix}twitter show
+            {command_prefix}twitter reload
+        +,-: Add or delete subscribed user of Twitter, will create a text channel to subscribe.
+        show: Show subscribed users, Warning: show command will block bot one moment.
+        reload: Reload twitter Streaming
         """
-        actions = ['+', '-']
+
+        actions = ['+', '-', 'show', 'reload']
         if action not in actions:
-            return Response('Invalid action must be + or - ', reply=True, delete_after=10)
-        if new_channel_name and (len(new_channel_name) > 32 or len(new_channel_name) < 2):
-            return Response('Invalid channel name, Must be between 2 and 32 in length', reply=True, delete_after=20)
+            return Response('Invalid action must be +,-,show,reload', reply=True, delete_after=10)
+
+        if action == 'show':
+            data = self.jsonIO.get(self.config.webhook_file)
+            if not data.get('Discord', None):
+                return Response('No subscribed twitter!')
+            subscribed = []
+            for dataD in data['Discord']:
+                if dataD['guild_id'] == guild.id:
+                    user_obj = self.twitter.get_user(dataD['twitter_id'])
+                    subscribed.append(user_obj._json)
+            text = ''
+            for user in subscribed:
+                text += '{}(@{}) \nhttps://twitter.com/{} \n'.format(
+                    user['name'].replace('_', r'\_'),
+                    user['screen_name'].replace('_', r'\_'),
+                    user['screen_name'])
+            if text == '':
+                return Response('No subscribed users!')
+            else:
+                return Response(text, embed=False)
+
+        if action == 'reload':
+            await self._reload_twitter()
+            return Response(':ok_hand:\n Reload success')
 
         if includeReplyToUser and str(includeReplyToUser).lower()[0] == 't':
             includeReplyToUser = True
@@ -882,9 +908,9 @@ class Kanobot(Bot):
         if action == '+':
             if subscribed:
                 return Response('Already subscribed \n{}\n'.format(user_obj.name))
-
-            channel_name = "{}".format(
-                user_obj.screen_name) if new_channel_name is None else new_channel_name
+            
+            if not channel_name or (len(channel_name) > 32 or len(channel_name) < 2):
+                return Response('Invalid channel name, Must be between 2 and 32 in length', reply=True, delete_after=20)
 
             try:
                 if category_id is None or guild.get_channel(category_id) is None:
@@ -926,56 +952,16 @@ class Kanobot(Bot):
                 return Response('{} did not subscribe'.format(user_obj.name))
             data['Discord'].remove(subscribed)
             data['twitter_ids'].remove(subscribed['twitter_id'])
+            self.jsonIO.save(self.config.webhook_file, data)
             try:
                 # await (await self.get_webhook_info(subscribe['webhook_id'])).delete()
                 await guild.get_channel(subscribed['channel_id']).delete()
             except Exception:
                 raise exceptions.CommandError(
                     'Delete channel failed', expire_in=20)
-            self.jsonIO.save(self.config.webhook_file, data)
 
         await self._reload_twitter()
         return Response("{} :ok_hand:\n\n{}\n".format("Subscribe" if action == '+' else "Unsubscribe", user_obj.name))
-
-    @require_twitter
-    async def cmd_twitter(self, guild):
-        """
-        Usage:
-            {command_prefix}twitter
-        See all subscribed twitter users
-        """
-        data = self.jsonIO.get(self.config.webhook_file)
-        if not data.get('Discord', None):
-            return Response('No subscribed twitter!')
-        subscribed = []
-        for dataD in data['Discord']:
-            if dataD['guild_id'] == guild.id:
-                user_obj = self.twitter.get_user(dataD['twitter_id'])
-                subscribed.append(user_obj._json)
-
-        text = ''
-        for user in subscribed:
-            text += '{}(@{}) \nhttps://twitter.com/{} \n'.format(
-                user['name'].replace('_', r'\_'),
-                user['screen_name'].replace('_', r'\_'),
-                user['screen_name'])
-
-        else:
-            if text == '':
-                return Response('No subscribed twitter!')
-            else:
-                return Response(text, embed=False)
-
-    @admin_only
-    @require_twitter
-    async def cmd_reload_twitter(self):
-        """
-        Usage:
-            {command_prefix}reload_twitter
-        This command is for reloaded twitter Streaming
-        """
-        await self._reload_twitter()
-        return Response(':ok_hand:\n Reload success')
 
     @admin_only
     async def cmd_kick(self, user_mentions):
@@ -985,8 +971,10 @@ class Kanobot(Bot):
         Kick user from server.
         """
         users = []
+        if not user_mentions:
+            return Response("No user mentioned!")
         for user in user_mentions:
             await user.kick()
             users.append(user.name)
-
+        
         return Response('successfully kicked {} from this server!'.format(", ".join(users)))
