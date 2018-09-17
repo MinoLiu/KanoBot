@@ -41,6 +41,15 @@ def finalize_logging():
         except:
             pass
 
+    if os.path.isfile("logs/kanobot.log"):
+        LOG.info("Moving old kanobot log")
+        try:
+            if os.path.isfile("logs/kanobot.log.last"):
+                os.unlink("logs/kanobot.log.last")
+            os.rename("logs/kanobot.log", "logs/kanobot.log.last")
+        except:
+            pass
+
     with open("logs/bot.log", 'w', encoding='utf8') as file_:
         TMPFILE.seek(0)
         file_.write(TMPFILE.read())
