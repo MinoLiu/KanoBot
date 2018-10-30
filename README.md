@@ -1,7 +1,6 @@
 # KanoBot
 
-[![CircleCI](https://circleci.com/gh/Sean2525/KanoBot/tree/master.svg?style=shield)](https://circleci.com/gh/Sean2525/KanoBot/tree/master)
-[![license:mit](https://img.shields.io/badge/license-mit-blue.svg)](https://opensource.org/licenses/MIT)
+[![CircleCI](https://circleci.com/gh/Sean2525/KanoBot/tree/master.svg?style=shield)](https://circleci.com/gh/Sean2525/KanoBot/tree/master) [![MicroBadger Size](https://img.shields.io/microbadger/image-size/sean2525/kanobot.svg?style=popout)](https://hub.docker.com/r/sean2525/kanobot/tags/) [![license:mit](https://img.shields.io/badge/license-mit-blue.svg)](https://opensource.org/licenses/MIT)
 
 Kanobot is a Discord bot written in Python and uses the Rewrite version of [discord.py](https://discordpy.readthedocs.io/en/rewrite/)  
 Adapted from [Just-Some-Bots/MusicBot](https://github.com/Just-Some-Bots/MusicBot) and [DiscordMusicBot/MusicBot](https://github.com/DiscordMusicBot/MusicBot)  
