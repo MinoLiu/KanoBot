@@ -55,7 +55,7 @@ class Bot(discord.Client):
         self.twitter = None
         self.twitter_listener = None
         self.twitter_stream = None
-        self.role_manager = self.jsonIO.load_json(self.config.role_manager_file)
+        self.role_manager = self.jsonIO.get(self.config.role_manager_file)
 
         self._setup_logging()
         super().__init__()
