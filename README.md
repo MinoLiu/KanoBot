@@ -10,7 +10,7 @@ But remove the music features.
 
 - [x] Purge message
 - [x] Twitter subscribe support
-- [ ] Roles management
+- [x] Roles management
 - [ ] Meme
 - [ ] More cmd
 - [ ] Bot status

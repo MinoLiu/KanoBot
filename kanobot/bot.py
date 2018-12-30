@@ -7,8 +7,8 @@ import inspect
 import traceback
 import aiohttp
 import random
+import math
 
-from copy import deepcopy
 from datetime import datetime
 
 from functools import wraps
@@ -55,27 +55,30 @@ class Bot(discord.Client):
         self.twitter = None
         self.twitter_listener = None
         self.twitter_stream = None
+        self.role_manager = self.jsonIO.load_json(self.config.role_manager_file)
 
         self._setup_logging()
         super().__init__()
         self.aiosession = aiohttp.ClientSession(loop=self.loop)
         self.http.user_agent += ' Kanobot'
-        self.colors = [0x7f0000, 0x535900, 0x40d9ff, 0x8c7399, 0xd97b6c, 0xf2ff40, 0x8fb6bf, 0x502d59, 0x66504d,
-                       0x89b359, 0x00aaff, 0xd600e6, 0x401100, 0x44ff00, 0x1a2b33, 0xff00aa, 0xff8c40, 0x17330d,
-                       0x0066bf, 0x33001b, 0xb39886, 0xbfffd0, 0x163a59, 0x8c235b, 0x8c5e00, 0x00733d, 0x000c59,
-                       0xffbfd9, 0x4c3300, 0x36d98d, 0x3d3df2, 0x590018, 0xf2c200, 0x264d40, 0xc8bfff, 0xf23d6d,
-                       0xd9c36c, 0x2db3aa, 0xb380ff, 0xff0022, 0x333226, 0x005c73, 0x7c29a6]
+        self.colors = [
+            0x7f0000, 0x535900, 0x40d9ff, 0x8c7399, 0xd97b6c, 0xf2ff40, 0x8fb6bf, 0x502d59, 0x66504d, 0x89b359,
+            0x00aaff, 0xd600e6, 0x401100, 0x44ff00, 0x1a2b33, 0xff00aa, 0xff8c40, 0x17330d, 0x0066bf, 0x33001b,
+            0xb39886, 0xbfffd0, 0x163a59, 0x8c235b, 0x8c5e00, 0x00733d, 0x000c59, 0xffbfd9, 0x4c3300, 0x36d98d,
+            0x3d3df2, 0x590018, 0xf2c200, 0x264d40, 0xc8bfff, 0xf23d6d, 0xd9c36c, 0x2db3aa, 0xb380ff, 0xff0022,
+            0x333226, 0x005c73, 0x7c29a6
+        ]
 
     def __del__(self):
         # These functions return futures but it doesn't matter
         try:
             self.http.close()
-        except:
+        except Exception:
             pass
 
         try:
             self.aiosession.close()
-        except:
+        except Exception:
             pass
 
         super().__init__()
@@ -87,7 +90,7 @@ class Bot(discord.Client):
             if self.twitter_stream:
                 self.twitter_stream.disconnect()
             self.loop.run_until_complete(self.logout())
-        except:
+        except Exception:
             pass
 
         pending = asyncio.Task.all_tasks()
@@ -97,7 +100,7 @@ class Bot(discord.Client):
             gathered.cancel()
             self.loop.run_until_complete(gathered)
             gathered.exception()
-        except:
+        except Exception:
             pass
 
     def _setup_logging(self):
@@ -106,38 +109,37 @@ class Bot(discord.Client):
             return
 
         shandler = logging.StreamHandler(stream=sys.stdout)
-        shandler.setFormatter(colorlog.LevelFormatter(
-            fmt={
-                'DEBUG': '{log_color}[{levelname}:{module}] {message}',
-                'INFO': '{log_color}{message}',
-                'WARNING': '{log_color}{levelname}: {message}',
-                'ERROR': '{log_color}[{levelname}:{module}] {message}',
-                'CRITICAL': '{log_color}[{levelname}:{module}] {message}',
-
-                'EVERYTHING': '{log_color}[{levelname}:{module}] {message}',
-                'NOISY': '{log_color}[{levelname}:{module}] {message}',
-                'VOICEDEBUG': '{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}',
-                'FFMPEG': '{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}'
-            },
-            log_colors={
-                'DEBUG':    'cyan',
-                'INFO':     'white',
-                'WARNING':  'yellow',
-                'ERROR':    'red',
-                'CRITICAL': 'bold_red',
-
-                'EVERYTHING': 'white',
-                'NOISY':      'white',
-                'FFMPEG':     'bold_purple',
-                'VOICEDEBUG': 'purple',
-            },
-            style='{',
-            datefmt=''
-        ))
+        shandler.setFormatter(
+            colorlog.LevelFormatter(
+                fmt={
+                    'DEBUG': '{log_color}[{levelname}:{module}] {message}',
+                    'INFO': '{log_color}{message}',
+                    'WARNING': '{log_color}{levelname}: {message}',
+                    'ERROR': '{log_color}[{levelname}:{module}] {message}',
+                    'CRITICAL': '{log_color}[{levelname}:{module}] {message}',
+                    'EVERYTHING': '{log_color}[{levelname}:{module}] {message}',
+                    'NOISY': '{log_color}[{levelname}:{module}] {message}',
+                    'VOICEDEBUG': '{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}',
+                    'FFMPEG': '{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}'
+                },
+                log_colors={
+                    'DEBUG': 'cyan',
+                    'INFO': 'white',
+                    'WARNING': 'yellow',
+                    'ERROR': 'red',
+                    'CRITICAL': 'bold_red',
+                    'EVERYTHING': 'white',
+                    'NOISY': 'white',
+                    'FFMPEG': 'bold_purple',
+                    'VOICEDEBUG': 'purple',
+                },
+                style='{',
+                datefmt=''
+            )
+        )
         logging.getLogger(__package__).setLevel(logging.DEBUG)
         shandler.setLevel(self.config.debug_level)
-        fh = logging.FileHandler(
-            filename='logs/kanobot.log', encoding='utf-8', mode='w')
+        fh = logging.FileHandler(filename='logs/kanobot.log', encoding='utf-8', mode='w')
         fh.setLevel(self.config.debug_level)
         logging.getLogger(__package__).addHandler(fh)
         logging.getLogger(__package__).addHandler(shandler)
@@ -145,20 +147,16 @@ class Bot(discord.Client):
         if self.config.debug_mode:
             dlogger = logging.getLogger('discord')
             dlogger.setLevel(logging.DEBUG)
-            dhandler = logging.FileHandler(
-                filename='logs/discord.log', encoding='utf-8', mode='w')
-            dhandler.setFormatter(logging.Formatter(
-                '{asctime}:{levelname}:{name}: {message}', style='{'))
+            dhandler = logging.FileHandler(filename='logs/discord.log', encoding='utf-8', mode='w')
+            dhandler.setFormatter(logging.Formatter('{asctime}:{levelname}:{name}: {message}', style='{'))
             dlogger.addHandler(dhandler)
 
     def _gen_embed(self):
         """ Provides a basic template for embeds"""
         e = discord.Embed()
         e.colour = random.choice(self.colors)
-        e.set_footer(text='© ({})'.format(self.user.name),
-                     icon_url=self.user.avatar_url)
-        e.set_author(name=self.user.name,
-                     icon_url=self.user.avatar_url)
+        e.set_footer(text='© ({})'.format(self.user.name), icon_url=self.user.avatar_url)
+        e.set_author(name=self.user.name, icon_url=self.user.avatar_url)
         e.timestamp = datetime.utcnow()
         return e
 
@@ -176,6 +174,7 @@ class Bot(discord.Client):
             await self._cache_app_info()
             # noinspection PyCallingNonCallable
             return await func(self, *args, **kwargs)
+
         return wrapper
 
     @ensure_appinfo
@@ -184,13 +183,9 @@ class Bot(discord.Client):
         await self._scheck_configs()
 
     @ensure_appinfo
-    async def generate_invite_link(self,
-                                   *,
-                                   permissions=discord.Permissions(70380544),
-                                   guild=None):
+    async def generate_invite_link(self, *, permissions=discord.Permissions(70380544), guild=None):
         """ TODO """
-        return discord.utils.oauth_url(
-            self.cached_app_info.id, permissions=permissions, guild=guild)
+        return discord.utils.oauth_url(self.cached_app_info.id, permissions=permissions, guild=guild)
 
     async def _scheck_configs(self):
         LOG.debug("Validating config")
@@ -203,11 +198,9 @@ class Bot(discord.Client):
         data = self.jsonIO.get(self.config.webhook_file)
         self.twitter = API(self.config.twitter_auth)
         self.twitter_listener = StdOutListener(data)
-        self.twitter_stream = StdOutStream(
-            self.config.twitter_auth, self.twitter_listener, retry_420=60)
+        self.twitter_stream = StdOutStream(self.config.twitter_auth, self.twitter_listener, retry_420=60)
         if data.get('twitter_ids', []):
-            self.twitter_stream.filter(
-                list(set(data.get('twitter_ids'))), None, True)
+            self.twitter_stream.filter(list(set(data.get('twitter_ids'))), None, True)
 
     async def _reload_twitter(self):
         data = self.jsonIO.get(self.config.webhook_file)
@@ -215,16 +208,14 @@ class Bot(discord.Client):
         self.twitter_stream.disconnect()
         await asyncio.sleep(10)
         del self.twitter_stream
-        self.twitter_stream = StdOutStream(
-            self.config.twitter_auth, self.twitter_listener, retry_420=60)
+        self.twitter_stream = StdOutStream(self.config.twitter_auth, self.twitter_listener, retry_420=60)
         if data.get('twitter_ids', []):
-            self.twitter_stream.filter(
-                list(set(data.get('twitter_ids'))), None, True)
+            self.twitter_stream.filter(list(set(data.get('twitter_ids'))), None, True)
 
     def _get_owner(self, *, guild=None):
         return discord.utils.find(
-            lambda m: m.id == self.config.owner_id,
-            guild.members if guild else self.get_all_members())
+            lambda m: m.id == self.config.owner_id, guild.members if guild else self.get_all_members()
+        )
 
     async def safe_send_message(self, dest, content, **kwargs):
         tts = kwargs.pop('tts', False)
@@ -251,20 +242,17 @@ class Bot(discord.Client):
 
         except discord.HTTPException:
             if len(content) > DISCORD_MSG_CHAR_LIMIT:
-                lfunc("Message is over the message size limit (%s)",
-                      DISCORD_MSG_CHAR_LIMIT)
+                lfunc("Message is over the message size limit (%s)", DISCORD_MSG_CHAR_LIMIT)
             else:
                 lfunc("Failed to send message")
-                LOG.noise(
-                    "Got HTTPException trying to send message to %s: %s", dest, content)
+                LOG.noise("Got HTTPException trying to send message to %s: %s", dest, content)
 
         finally:
             if msg and expire_in:
                 asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
 
             if also_delete and isinstance(also_delete, discord.Message):
-                asyncio.ensure_future(
-                    self._wait_delete_msg(also_delete, expire_in))
+                asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
 
         return msg
 
@@ -279,12 +267,10 @@ class Bot(discord.Client):
             return await message.delete()
 
         except discord.Forbidden:
-            lfunc("Cannot delete message \"{}\", no permission".format(
-                message.clean_content))
+            lfunc("Cannot delete message \"{}\", no permission".format(message.clean_content))
 
         except discord.NotFound:
-            lfunc("Cannot delete message \"{}\", message not found".format(
-                message.clean_content))
+            lfunc("Cannot delete message \"{}\", message not found".format(message.clean_content))
 
     async def safe_edit_message(self, message, new, *, send_if_fail=False, quiet=False):
         lfunc = LOG.debug if quiet else LOG.warning
@@ -293,8 +279,7 @@ class Bot(discord.Client):
             return await message.edit(new)
 
         except discord.NotFound:
-            lfunc("Cannot edit message \"{}\", message not found".format(
-                message.clean_content))
+            lfunc("Cannot edit message \"{}\", message not found".format(message.clean_content))
             if send_if_fail:
                 lfunc("Sending message instead")
                 return await self.safe_send_message(message.channel, new)
@@ -303,8 +288,7 @@ class Bot(discord.Client):
         try:
             return await destination.trigger_typing()
         except discord.Forbidden:
-            LOG.warning(
-                "Could not send typing to {}, no permission".format(destination))
+            LOG.warning("Could not send typing to {}, no permission".format(destination))
 
     async def on_ready(self):
         dlogger = logging.getLogger('discord')
@@ -318,8 +302,7 @@ class Bot(discord.Client):
         self.ws._keep_alive.name = 'Gateway Keepalive'
 
         if self.init_ok:
-            LOG.debug(
-                "Received additional READY event, may have failed to resume")
+            LOG.debug("Received additional READY event, may have failed to resume")
             return
 
         await self._on_ready_sanity_checks()
@@ -331,28 +314,21 @@ class Bot(discord.Client):
 
         ################################
 
-        LOG.info("Bot:   {0}/{1}#{2}{3}".format(
-            self.user.id,
-            self.user.name,
-            self.user.discriminator,
-            ' [BOT]' if self.user.bot else ' [Userbot]'
-        ))
+        LOG.info(
+            "Bot:   {0}/{1}#{2}{3}".format(
+                self.user.id, self.user.name, self.user.discriminator, ' [BOT]' if self.user.bot else ' [Userbot]'
+            )
+        )
 
         owner = self._get_owner()
         if owner and self.guilds:
-            LOG.info("Owner: {0}/{1}#{2}\n".format(
-                owner.id,
-                owner.name,
-                owner.discriminator
-            ))
+            LOG.info("Owner: {0}/{1}#{2}\n".format(owner.id, owner.name, owner.discriminator))
 
             LOG.info('Server List:')
             [LOG.info(' - ' + s.name) for s in self.guilds]
 
         elif self.guilds:
-            LOG.warning(
-                "Owner could not be found on any server (id: %s)\n",
-                self.config.owner_id)
+            LOG.warning("Owner could not be found on any server (id: %s)\n", self.config.owner_id)
 
             LOG.info('Server List:')
             [LOG.info(' - ' + s.name) for s in self.guilds]
@@ -374,17 +350,57 @@ class Bot(discord.Client):
         LOG.info("Options:")
 
         LOG.info("  Command prefix: " + self.config.command_prefix)
-        LOG.info("  Delete Messages: " +
-                 ['Disabled', 'Enabled'][self.config.delete_messages])
+        LOG.info("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
         if self.config.delete_messages:
-            LOG.info("  Delete Invoking: " +
-                     ['Disabled', 'Enabled'][self.config.delete_invoking])
-        LOG.info("  Debug Mode: " +
-                 ['Disabled', 'Enabled'][self.config.debug_mode])
+            LOG.info("  Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
+        LOG.info("  Debug Mode: " + ['Disabled', 'Enabled'][self.config.debug_mode])
         LOG.info("  Debug Level: " + self.config.debug_level_str)
-        LOG.info("  Twitter: {}".format(
-            "Enabled" if self.config.twitter_auth else "Disabled"))
+        LOG.info("  Twitter: {}".format("Enabled" if self.config.twitter_auth else "Disabled"))
         print(flush=True)
+
+    async def on_raw_reaction_add(self, event):
+        message_id = event.message_id
+        guild_id = event.guild_id
+        user_id = event.user_id
+        emoji = event.emoji
+
+        data = self.role_manager.get(str(guild_id))
+        if not data:
+            return
+
+        guild = self.get_guild(guild_id)
+        user = guild.get_member(user_id)
+
+        if str(message_id) in data['messages_list']:
+            message = data['messages'][str(message_id)]
+            role_id = message.get(str(emoji))
+            if not role_id:
+                return
+
+            role = guild.get_role(int(role_id))
+            await user.add_roles(role)
+
+    async def on_raw_reaction_remove(self, event):
+        message_id = event.message_id
+        guild_id = event.guild_id
+        user_id = event.user_id
+        emoji = event.emoji
+
+        data = self.role_manager.get(str(guild_id))
+        if not data:
+            return
+
+        guild = self.get_guild(guild_id)
+        user = guild.get_member(user_id)
+
+        if str(message_id) in data['messages_list']:
+            message = data['messages'][str(message_id)]
+            role_id = message.get(str(emoji))
+            if not role_id:
+                return
+
+            role = guild.get_role(int(role_id))
+            await user.remove_roles(role)
 
     async def on_message(self, message):
         await self.wait_until_ready()
@@ -398,8 +414,7 @@ class Bot(discord.Client):
             return
 
         if message.author == self.user:
-            LOG.warning(
-                "Ignoring command from myself (%s)", message.content)
+            LOG.warning("Ignoring command from myself (%s)", message.content)
             return
 
         command, *args = message_content.split(' ')
@@ -408,17 +423,13 @@ class Bot(discord.Client):
         if not handler:
             return
 
-        private_msg_list = ['joinserver', 'ban',
-                            'setavatar', 'restart', 'help']
+        private_msg_list = ['joinserver', 'ban', 'setavatar', 'restart', 'help']
         if isinstance(message.channel, discord.DMChannel):
-            if not (message.author.id == self.config.owner_id and
-                    command in private_msg_list):
-                await message.channel.send(
-                    'You cannot use this bot in private messages.')
+            if not (message.author.id == self.config.owner_id and command in private_msg_list):
+                await message.channel.send('You cannot use this bot in private messages.')
                 return
 
-        LOG.info("{0.id}/{0!s}: {1}".format(message.author, message_content
-                                            .replace('\n', '\n... ')))
+        LOG.info("{0.id}/{0!s}: {1}".format(message.author, message_content.replace('\n', '\n... ')))
         argspec = inspect.signature(handler)
         params = argspec.parameters.copy()
 
@@ -439,12 +450,10 @@ class Bot(discord.Client):
                 handler_kwargs['author'] = message.author
 
             if params.pop('user_mentions', None):
-                handler_kwargs['user_mentions'] = list(
-                    map(message.guild.get_member, message.raw_mentions))
+                handler_kwargs['user_mentions'] = list(map(message.guild.get_member, message.raw_mentions))
 
             if params.pop('channel_mentions', None):
-                handler_kwargs['channel_mentions'] = list(
-                    map(message.guild.get_channel, message.raw_channel_mentions))
+                handler_kwargs['channel_mentions'] = list(map(message.guild.get_channel, message.raw_channel_mentions))
 
             if params.pop('leftover_args', None):
                 handler_kwargs['leftover_args'] = args
@@ -465,8 +474,7 @@ class Bot(discord.Client):
                     params.pop(key)
                     continue
 
-                doc_key = '[{}={}]'.format(
-                    key, param.default) if param.default is not param.empty else key
+                doc_key = '[{}={}]'.format(key, param.default) if param.default is not param.empty else key
                 args_expected.append(doc_key)
 
                 # Ignore keyword args with default values when the command had no arguments
@@ -484,20 +492,11 @@ class Bot(discord.Client):
             if params:
                 docs = getattr(handler, '__doc__', None)
                 if not docs:
-                    docs = 'Usage: {}{} {}'.format(
-                        self.config.command_prefix,
-                        command,
-                        ' '.join(args_expected)
-                    )
+                    docs = 'Usage: {}{} {}'.format(self.config.command_prefix, command, ' '.join(args_expected))
 
                 docs = dedent(docs)
-                content = '```\n{}\n```'.format(docs.format(
-                    command_prefix=self.config.command_prefix))
-                await self.safe_send_message(
-                    message.channel,
-                    content,
-                    expire_in=60
-                )
+                content = '```\n{}\n```'.format(docs.format(command_prefix=self.config.command_prefix))
+                await self.safe_send_message(message.channel, content, expire_in=60)
                 return
 
             await self.send_typing(message.channel)
@@ -513,19 +512,21 @@ class Bot(discord.Client):
                 if response.reply:
                     if isinstance(content, discord.Embed):
                         content.description = '{} {}'.format(
-                            message.author.mention, content.description if content.description is not discord.Embed.Empty else '')
+                            message.author.mention,
+                            content.description if content.description is not discord.Embed.Empty else ''
+                        )
                     else:
-                        content = '{}: {}'.format(
-                            message.author.mention, content)
+                        content = '{}: {}'.format(message.author.mention, content)
 
                 sentmsg = await self.safe_send_message(
-                    message.channel, content,
+                    message.channel,
+                    content,
                     expire_in=response.delete_after if self.config.delete_messages else 0,
-                    also_delete=message if self.config.delete_invoking else None)
+                    also_delete=message if self.config.delete_invoking else None
+                )
 
         except (exceptions.CommandError, exceptions.HelpfulError) as e:
-            LOG.error("Error in {0}: {1.__class__.__name__}: {1.message}".format(
-                command, e), exc_info=True)
+            LOG.error("Error in {0}: {1.__class__.__name__}: {1.message}".format(command, e), exc_info=True)
             expirein = e.expire_in if self.config.delete_messages else None
             alsodelete = message if self.config.delete_invoking else None
 
@@ -536,12 +537,7 @@ class Bot(discord.Client):
             else:
                 content = '```\n{}\n```'.format(e.message)
 
-            await self.safe_send_message(
-                message.channel,
-                content,
-                expire_in=expirein,
-                also_delete=alsodelete
-            )
+            await self.safe_send_message(message.channel, content, expire_in=expirein, also_delete=alsodelete)
         except exceptions.Signal:
             raise
         except Exception:
@@ -568,10 +564,9 @@ class Bot(discord.Client):
         except discord.errors.LoginFailure:
             # Add if token, else
             raise exceptions.HelpfulError(
-                "Bot cannot login, bad credentials.",
-                "Fix your %s in the config.ini file.  "
-                "Remember that each field should be on their own line."
-                % ['Token', 'Credentials'][len(self.config.auth)]
+                "Bot cannot login, bad credentials.", "Fix your %s in the config.ini file.  "
+                "Remember that each field should be on their own line." % ['Token', 'Credentials'
+                                                                          ][len(self.config.auth)]
             )  # ^^^^ In theory self.config.auth should never have no items
         finally:
             try:
@@ -601,8 +596,8 @@ class Kanobot(Bot):
                 # noinspection PyCallingNonCallable
                 return await func(self, *args, **kwargs)
             else:
-                raise exceptions.PermissionsError(
-                    "only the owner can use this command", expire_in=30)
+                raise exceptions.PermissionsError("only the owner can use this command", expire_in=30)
+
         wrapper.owner_cmd = True
         return wrapper
 
@@ -616,8 +611,8 @@ class Kanobot(Bot):
                 # noinspection PyCallingNonCallable
                 return await func(self, *args, **kwargs)
             else:
-                raise exceptions.PermissionsError(
-                    "only admin users can use this command", expire_in=30)
+                raise exceptions.PermissionsError("only admin users can use this command", expire_in=30)
+
         wrapper.admin_cmd = True
         return wrapper
 
@@ -630,8 +625,8 @@ class Kanobot(Bot):
                 # noinspection PyCallingNonCallable
                 return await func(self, *args, **kwargs)
             else:
-                raise exceptions.PermissionsError(
-                    "only dev users can use this command", expire_in=30)
+                raise exceptions.PermissionsError("only dev users can use this command", expire_in=30)
+
         wrapper.dev_cmd = True
         return wrapper
 
@@ -640,11 +635,13 @@ class Kanobot(Bot):
         async def wrapper(self, *args, **kwargs):
             if not self.twitter:
                 raise exceptions.HelpfulError(
-                    'Twitter feature are disabled!',
-                    "Go to https://apps.twitter.com\n"
+                    'Twitter feature are disabled!', "Go to https://apps.twitter.com\n"
                     "ConsumerKey, ConsumerSecret, AccessToken, AccessTokenSecret\n"
-                    "Make sure they are correct and fill into config.ini\n", expire_in=30)
+                    "Make sure they are correct and fill into config.ini\n",
+                    expire_in=30
+                )
             return await func(self, *args, **kwargs)
+
         return wrapper
 
     @admin_only
@@ -680,7 +677,7 @@ class Kanobot(Bot):
         try:
             float(search_range)  # lazy check
             search_range = min(int(search_range), 1000)
-        except:
+        except Exception:
             return Response("Enter a number.  NUMBER.  That means digits. `15`.  Etc.", reply=True, delete_after=8)
 
         def check_user(m):
@@ -694,8 +691,11 @@ class Kanobot(Bot):
                     if m.author == u:
                         return True
                 return False
+
         deleted = await channel.purge(limit=search_range, check=check_user, bulk=True)
-        return Response('successfully deleted {} messages from this channel!'.format(len(deleted)), reply=True, delete_after=8)
+        return Response(
+            'successfully deleted {} messages from this channel!'.format(len(deleted)), reply=True, delete_after=8
+        )
 
     @admin_only
     async def cmd_restart(self, channel):
@@ -726,7 +726,9 @@ class Kanobot(Bot):
         except discord.HTTPException:
             raise exceptions.CommandError(
                 "Failed to change name. Did you change names too many times? "
-                "Remember name changes are limited to twice per hour.", expire_in=20)
+                "Remember name changes are limited to twice per hour.",
+                expire_in=20
+            )
 
         except Exception as e:
             raise exceptions.CommandError(e, expire_in=20)
@@ -746,18 +748,20 @@ class Kanobot(Bot):
         elif url:
             thing = url.strip('<>')
         else:
-            return Response("```\n{}```".format(
-                dedent(self.cmd_setavatar.__doc__).format(
-                    command_prefix=self.config.command_prefix)),
-                reply=True, delete_after=30)
+            return Response(
+                "```\n{}```".format(
+                    dedent(self.cmd_setavatar.__doc__).format(command_prefix=self.config.command_prefix)
+                ),
+                reply=True,
+                delete_after=30
+            )
 
         try:
             async with self.aiosession.get(thing, timeout=self.timeout) as res:
                 await self.user.edit(avatar=await res.read())
 
         except Exception as error:
-            raise exceptions.CommandError(
-                "Unable to change avatar: {}".format(error), expire_in=20)
+            raise exceptions.CommandError("Unable to change avatar: {}".format(error), expire_in=20)
 
         return Response("\n:ok_hand:", delete_after=20)
 
@@ -787,9 +791,7 @@ class Kanobot(Bot):
             cmd = getattr(self, 'cmd_' + command, None)
             if cmd and not hasattr(cmd, 'dev_cmd'):
                 return Response(
-                    "```\n{}```".format(
-                        dedent(cmd.__doc__)
-                    ).format(command_prefix=self.config.command_prefix),
+                    "```\n{}```".format(dedent(cmd.__doc__)).format(command_prefix=self.config.command_prefix),
                     embed=False
                 )
             else:
@@ -805,20 +807,17 @@ class Kanobot(Bot):
                         and not hasattr(getattr(self, att), 'admin_cmd') \
                         and not hasattr(getattr(self, att), 'owner_cmd'):
                     command_name = att.replace('cmd_', '').lower()
-                    commands.append("{}{}".format(
-                        self.config.command_prefix, command_name))
+                    commands.append("{}{}".format(self.config.command_prefix, command_name))
                 elif att.startswith('cmd_') and att != 'cmd_help' \
                         and author.id in self.config.admin_ids \
                         and hasattr(getattr(self, att), 'admin_cmd'):
                     command_name = att.replace('cmd_', '').lower()
-                    commands.append("{}{}".format(
-                        self.config.command_prefix, command_name))
+                    commands.append("{}{}".format(self.config.command_prefix, command_name))
                 elif att.startswith('cmd_') and att != 'cmd_help' \
                         and author.id == self.config.owner_id \
                         and hasattr(getattr(self, att), 'owner_cmd'):
                     command_name = att.replace('cmd_', '').lower()
-                    commands.append("{}{}".format(
-                        self.config.command_prefix, command_name))
+                    commands.append("{}{}".format(self.config.command_prefix, command_name))
             commands.sort()
             helpmsg += ", ".join(commands)
             helpmsg += "```\n\nYou can use `{}help x` for more info about each command." \
@@ -827,7 +826,16 @@ class Kanobot(Bot):
 
     @admin_only
     @require_twitter
-    async def cmd_twitter(self, guild, action, name=None, channel_name=None, includeReplyToUser=None, includeUserReply=None, includeRetweet=None):
+    async def cmd_twitter(
+        self,
+        guild,
+        action,
+        name=None,
+        channel_name=None,
+        includeReplyToUser=None,
+        includeUserReply=None,
+        includeRetweet=None
+    ):
         """
         Usage:
             {command_prefix}twitter [+, -, show, reload]
@@ -857,9 +865,8 @@ class Kanobot(Bot):
             text = ''
             for user in subscribed:
                 text += '{}(@{}) \nhttps://twitter.com/{} \n'.format(
-                    user['name'].replace('_', r'\_'),
-                    user['screen_name'].replace('_', r'\_'),
-                    user['screen_name'])
+                    user['name'].replace('_', r'\_'), user['screen_name'].replace('_', r'\_'), user['screen_name']
+                )
             if text == '':
                 return Response('No subscribed users!')
             else:
@@ -908,26 +915,23 @@ class Kanobot(Bot):
         if action == '+':
             if subscribed:
                 return Response('Already subscribed \n{}\n'.format(user_obj.name))
-            
+
             if not channel_name or (len(channel_name) > 32 or len(channel_name) < 2):
                 return Response('Invalid channel name, Must be between 2 and 32 in length', reply=True, delete_after=20)
 
             try:
                 if category_id is None or guild.get_channel(category_id) is None:
-                    overwrites = {
-                        guild.default_role: discord.PermissionOverwrite(
-                            send_messages=False)
-                    }
-                    data['Category_ids'][str(guild.id)] = category_id = (await guild.create_category_channel('twitter', overwrites=overwrites)).id
+                    overwrites = {guild.default_role: discord.PermissionOverwrite(send_messages=False)}
+                    data['Category_ids'][str(
+                        guild.id
+                    )] = category_id = (await guild.create_category_channel('twitter', overwrites=overwrites)).id
 
                 category = guild.get_channel(category_id)
 
-                channel = (await guild.create_text_channel(
-                    channel_name, category=category))
+                channel = (await guild.create_text_channel(channel_name, category=category))
 
             except Exception:
-                raise exceptions.CommandError(
-                    "Create channel {} failed".format(channel_name), expire_in=30)
+                raise exceptions.CommandError("Create channel {} failed".format(channel_name), expire_in=30)
 
             try:
                 webhook_obj = await channel.create_webhook(name=channel_name)
@@ -943,7 +947,8 @@ class Kanobot(Bot):
                 'twitter_name': user_obj.screen_name,
                 'includeReplyToUser': includeReplyToUser,
                 'includeUserReply': includeUserReply,
-                'includeRetweet': includeRetweet})
+                'includeRetweet': includeRetweet
+            })
             data['twitter_ids'].append(user_obj.id_str)
             data['twitter_ids'] = data['twitter_ids']
             self.jsonIO.save(self.config.webhook_file, data)
@@ -957,8 +962,7 @@ class Kanobot(Bot):
                 # await (await self.get_webhook_info(subscribe['webhook_id'])).delete()
                 await guild.get_channel(subscribed['channel_id']).delete()
             except Exception:
-                raise exceptions.CommandError(
-                    'Delete channel failed', expire_in=20)
+                raise exceptions.CommandError('Delete channel failed', expire_in=20)
 
         await self._reload_twitter()
         return Response("{} :ok_hand:\n\n{}\n".format("Subscribe" if action == '+' else "Unsubscribe", user_obj.name))
@@ -976,5 +980,206 @@ class Kanobot(Bot):
         for user in user_mentions:
             await user.kick()
             users.append(user.name)
-        
+
         return Response('successfully kicked {} from this server!'.format(", ".join(users)))
+
+    @admin_only
+    async def cmd_role_manager(self, message):
+        """
+        Usage:
+            {command_prefix}role_manager
+        Manage roles.
+        Make sure your bot's role higher than other.
+        """
+        data = {}
+        used_emoji = []
+        messages = {}
+        messages_list = []
+        roles = [x for x in message.guild.roles if x.name != '@everyone']
+        emojis = ['✅', '❎', '⬅', '➡', '🗑']
+        alphabet = ['🇦', '🇧', '🇨', '🇩', '🇪']
+
+        role_manager = self.jsonIO.get(self.config.role_manager_file)
+        if role_manager.get(str(message.guild.id)):
+            data = role_manager[str(message.guild.id)]
+            used_emoji = data['used_emoji']
+            messages = data['messages']
+            messages_list = data['messages_list']
+
+        async def add_role_message(_message, message=message):
+            context = 'Please select an role: \n'
+            pages = math.ceil(len(roles) / 5)
+            done = False
+            msg = None
+            reaction = None
+
+            i = 0
+            while (not done):
+                new_context = context
+                for idx, r in enumerate(roles[i * 5:(i + 1) * 5]):
+                    new_context += '{} {}\n'.format(alphabet[idx], r.name)
+                else:
+                    new_context += '{}/{}\n'.format(
+                        len(roles) if (i + 1) * 5 >= len(roles) else (i + 1) * 5, len(roles)
+                    )
+                msg = await self.safe_send_message(message.channel, new_context)
+                idx = len(roles) if (i + 1) * 5 >= len(roles) else (i + 1) * 5
+                for x in alphabet[:idx - i * 5]:
+                    await msg.add_reaction(x)
+                for x in emojis[:4]:
+                    await msg.add_reaction(x)
+                try:
+
+                    def _check(reaction, user):
+                        return user == message.author and (
+                            str(reaction.emoji) in emojis or str(reaction.emoji) in alphabet
+                        )
+
+                    reaction, _ = await self.wait_for('reaction_add', timeout=60.0, check=_check)
+                except asyncio.TimeoutError:
+                    await self.safe_delete_message(msg)
+                    done = True
+                    return
+
+                str_emoji = str(reaction.emoji)
+
+                if str_emoji == emojis[0]:
+                    data['used_emoji'] = list(set(used_emoji))
+                    data['messages'] = messages
+                    data['messages_list'] = list(set(messages_list))
+                    role_manager[str(message.guild.id)] = data
+                    self.jsonIO.save(self.config.role_manager_file, role_manager)
+                    self.role_manager = role_manager
+                    done = True
+
+                elif str_emoji == emojis[1]:
+                    await self.safe_delete_message(msg)
+                    await self.safe_delete_message(message)
+                    done = True
+
+                elif str_emoji == emojis[2]:
+                    i -= 1
+                    if i < 0:
+                        i = 0
+
+                elif str_emoji == emojis[3]:
+                    i += 1
+                    if i >= pages:
+                        i = pages - 1
+
+                else:
+                    idx = alphabet.index(str_emoji)
+                    msg = await self.safe_delete_message(msg)
+                    msg = await self.safe_send_message(message.channel, 'Please add a reaction for this role.')
+                    try:
+
+                        def _check(reaction, user):
+                            return user == message.author and str(reaction.emoji) not in used_emoji
+
+                        reaction, _ = await self.wait_for('reaction_add', timeout=60.0, check=_check)
+                    except asyncio.TimeoutError:
+                        await self.safe_delete_message(msg)
+                        await self.safe_delete_message(message)
+                        done = True
+                        return
+                    if not messages.get(str(_message.id)):
+                        messages[str(_message.id)] = {}
+                    messages[str(_message.id)][str(reaction.emoji)] = str(roles[i * 5 + idx].id)
+                    messages_list.append(str(_message.id))
+                    used_emoji.append(str(reaction.emoji))
+                    await _message.add_reaction(reaction.emoji)
+
+                await self.safe_delete_message(msg)
+            return Response('Role management completed successfully!\nNow you can \
+                    edit your message', delete_after=15)
+
+        msg = await self.safe_send_message(message.channel, 'Create a message to manage role?')
+        for x in emojis[:2]:
+            await msg.add_reaction(x)
+
+        try:
+
+            def check(reaction, user):
+                return user == message.author and str(reaction.emoji) in emojis
+
+            reaction, _ = await self.wait_for('reaction_add', timeout=60.0, check=check)
+        except asyncio.TimeoutError:
+            await self.safe_delete_message(msg)
+            return
+
+        await self.safe_delete_message(msg)
+
+        if str(reaction.emoji) == emojis[0]:
+            return await add_role_message(message)
+
+        if messages_list:
+            i = 0
+            done = False
+            reaction = None
+            pages = len(messages_list)
+            context = 'Do you want to add more role to this message or unbind this message?\n'
+            while (not done):
+                new_context = context
+                if not messages_list:
+                    break
+
+                for x, y in messages[messages_list[i]].items():
+                    role = message.guild.get_role(int(y))
+                    role_name = role.name if role else 'None'
+                    new_context += '{}: {}\n'.format(x, role_name)
+                else:
+                    new_context += '{}/{}'.format(i + 1, pages)
+
+                msg = await self.safe_send_message(message.channel, new_context)
+                for x in emojis:
+                    await msg.add_reaction(x)
+                try:
+                    def _check(reaction, user):
+                        return user == message.author and str(reaction.emoji) in emojis
+
+                    reaction, _ = await self.wait_for('reaction_add', timeout=60.0, check=_check)
+                except asyncio.TimeoutError:
+                    await self.safe_delete_message(msg)
+                    return
+
+                await self.safe_delete_message(msg)
+
+                message_id = messages_list[i]
+                str_reaction = str(reaction.emoji)
+                if str_reaction == emojis[0]:
+                    msg = await message.channel.get_message(int(message_id))
+                    if not msg:
+                        return Response('Please move to correct channel then type command again!', delete_after=15)
+                    return await add_role_message(msg)
+
+                elif str_reaction == emojis[1]:
+                    done = True
+                    return
+                elif str_reaction == emojis[2]:
+                    i -= 1
+                    if i < 0:
+                        i = 0
+                elif str_reaction == emojis[3]:
+                    i += 1
+                    if i >= pages:
+                        i = pages - 1
+                elif str_reaction == emojis[4]:
+                    for x in messages[message_id].keys():
+                        used_emoji.remove(x)
+                    del messages[message_id]
+                    messages_list.remove(message_id)
+                    pages -= 1
+                    i = 0
+
+                    data['used_emoji'] = list(set(used_emoji))
+                    data['messages'] = messages
+                    data['messages_list'] = list(set(messages_list))
+                    role_manager[str(message.guild.id)] = data
+                    self.jsonIO.save(self.config.role_manager_file, role_manager)
+                    self.role_manager = role_manager
+
+            return Response(
+                'Role management completed successfully!\nNow you can \
+                    edit your message',
+                delete_after=15
+            )

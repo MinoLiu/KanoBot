@@ -27,11 +27,13 @@ class CommandError(BotException):
     """ TODO """
     pass
 
+
 # The user doesn't have permission to use a command
 
 
 class PermissionsError(CommandError):
     """ TODO """
+
     @property
     def message(self):
         return "You don't have permission to use that command.\nReason: " + self._message
@@ -41,8 +43,7 @@ class PermissionsError(CommandError):
 class HelpfulError(BotException):
     """ TODO """
 
-    def __init__(self, issue, solution, *,
-                 preface="An error has occured:", footnote='', expire_in=0):
+    def __init__(self, issue, solution, *, preface="An error has occured:", footnote='', expire_in=0):
         self.issue = issue
         self.solution = solution
         self.preface = preface
@@ -67,8 +68,7 @@ class HelpfulError(BotException):
         return self._message_fmt.format(
             preface=self.preface,
             problem=self._pretty_wrap(self.issue, "  Problem:", width=None),
-            solution=self._pretty_wrap(
-                self.solution, "  Solution:", width=None),
+            solution=self._pretty_wrap(self.solution, "  Solution:", width=None),
             footnote=self.footnote
         )
 
@@ -81,8 +81,7 @@ class HelpfulError(BotException):
             width = shutil.get_terminal_size().columns
 
         lines = textwrap.wrap(text, width=width - 5)
-        lines = (('    ' + line).
-                 rstrip().ljust(width - 1).rstrip() + '\n' for line in lines)
+        lines = (('    ' + line).rstrip().ljust(width - 1).rstrip() + '\n' for line in lines)
 
         return pretext + ''.join(lines).rstrip()
 

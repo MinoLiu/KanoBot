@@ -13,7 +13,6 @@ class InvalidPath(Exception):
 
 
 class JsonIO(dict):
-
     def save(self, filename, data):
         """
         Save json in file
@@ -26,11 +25,13 @@ class JsonIO(dict):
     # pylint: disable=E1102
     def _save(func):
         """ wrapper function """
+
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             filename, data = func(self, *args, **kwargs)
             self.save_json(filename, data)
             return data
+
         return wrapper
 
     def get(self, filename):
@@ -109,8 +110,7 @@ class JsonIO(dict):
             except Exception:
                 raise InvalidPath()
         with open(filename, encoding='utf-8', mode="w") as f:
-            json.dump(data, f, indent=4, sort_keys=True,
-                      separators=(',', ' : '))
+            json.dump(data, f, indent=4, sort_keys=True, separators=(',', ' : '))
         return data
 
     def _read_json(self, filename):

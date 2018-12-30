@@ -6,6 +6,8 @@ name = "pypi"
 [dev-packages]
 autopep8 = "*"
 pylint = "*"
+"flake8" = "*"
+yapf = "*"
 
 [requires]
 python_version = "3.6.5"
