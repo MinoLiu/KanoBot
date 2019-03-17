@@ -187,12 +187,30 @@ class Bot(discord.Client):
         """ TODO """
         return discord.utils.oauth_url(self.cached_app_info.id, permissions=permissions, guild=guild)
 
+    async def _schedule_restart(self):
+        await asyncio.sleep(24*3600)
+        await self.restart()
+
+    async def change_kano_avatar(self):
+        kano_obj = self.twitter.get_user('@kano_2525')
+        url = kano_obj.profile_image_url_https.replace("_normal", "")
+        try:
+            async with self.aiosession.get(url, timeout=self.timeout) as res:
+                await self.user.edit(avatar=await res.read())
+            LOG.info("Avatar change succeeded")
+
+        except Exception as error:
+            LOG.error(error)
+
     async def _scheck_configs(self):
         LOG.debug("Validating config")
         await self.config.async_validate(self)
         self.config.validate_twitter()
         if self.config.twitter_auth:
             await self._start_twitter()
+            if self.config.enable_change_avatar:
+                await self.change_kano_avatar()
+        
 
     async def _start_twitter(self):
         data = self.jsonIO.get(self.config.webhook_file)
@@ -311,7 +329,9 @@ class Bot(discord.Client):
         LOG.info('Connected!   -   KanoBot\n')
 
         self.init_ok = True
-
+        
+        asyncio.ensure_future(self._schedule_restart())
+        LOG.info('Schedule restart set')
         ################################
 
         LOG.info(
@@ -643,7 +663,7 @@ class Kanobot(Bot):
             return await func(self, *args, **kwargs)
 
         return wrapper
-
+    
     @admin_only
     async def cmd_joinserver(self, message, server_link=None):
         """

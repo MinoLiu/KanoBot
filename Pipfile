@@ -10,9 +10,10 @@ pylint = "*"
 yapf = "*"
 
 [requires]
-python_version = "3.6.5"
+python_version = "3.7"
 
 [packages]
 colorlog = "*"
 tweepy = "*"
-"discord.py" = {ref = "rewrite", git = "https://github.com/Rapptz/discord.py"}
+"discord.py" = {ref = "rewrite",git = "https://github.com/Rapptz/discord.py"}
+apscheduler = "*"

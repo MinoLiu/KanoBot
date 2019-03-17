@@ -54,7 +54,8 @@ class Config:
         self.consumer_secret = config.get('Bot', 'ConsumerSecret', fallback=ConfigDefaults.consumer_secret)
         self.access_token = config.get('Bot', 'AccessToken', fallback=ConfigDefaults.access_token)
         self.access_token_secret = config.get('Bot', 'AccessTokenSecret', fallback=ConfigDefaults.access_token_secret)
-
+        self.enable_change_avatar = config.get('Bot', 'EnableChangeAvatar',
+                                               fallback=ConfigDefaults.enable_change_avatar)
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.banned_file = config.get('Files', 'BannedFile', fallback=ConfigDefaults.banned_file)
         self.webhook_file = config.get('Files', 'WebhookFile', fallback=ConfigDefaults.webhook_file)
@@ -257,6 +258,7 @@ class ConfigDefaults:
     consumer_secret = None
     access_token = None
     access_token_secret = None
+    enable_change_avatar = False
 
     blacklist_file = 'config/blacklist.txt'
     banned_file = 'config/banned.txt'
