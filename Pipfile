@@ -15,4 +15,4 @@ python_version = "3.7"
 [packages]
 colorlog = "*"
 tweepy = "*"
-"discord.py" = {ref = "rewrite",git = "https://github.com/Rapptz/discord.py"}
+discord-py = "*"
