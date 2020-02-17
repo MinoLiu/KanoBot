@@ -1167,7 +1167,7 @@ class Kanobot(Bot):
                 message_id = messages_list[i]
                 str_reaction = str(reaction.emoji)
                 if str_reaction == emojis[0]:
-                    msg = await message.channel.get_message(int(message_id))
+                    msg = await message.channel.fetch_message(int(message_id))
                     if not msg:
                         return Response('Please move to correct channel then type command again!', delete_after=15)
                     return await add_role_message(msg)
