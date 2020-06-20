@@ -13,16 +13,15 @@ LOG = logging.getLogger('launcher')
 LOG.setLevel(logging.DEBUG)
 
 sh = logging.StreamHandler(stream=sys.stdout)
-sh.setFormatter(logging.Formatter(
-    fmt="[%(levelname)s] %(name)s: %(message)s"
-))
+sh.setFormatter(logging.Formatter(fmt="[%(levelname)s] %(name)s: %(message)s"))
 sh.setLevel(logging.INFO)
 LOG.addHandler(sh)
 
 tfh = logging.StreamHandler(stream=TMPFILE)
 tfh.setFormatter(
     logging.Formatter(fmt="[%(relativeCreated).9f] %(asctime)s \
-    - %(levelname)s - %(name)s: %(message)s"))
+    - %(levelname)s - %(name)s: %(message)s")
+)
 tfh.setLevel(logging.DEBUG)
 LOG.addHandler(tfh)
 
@@ -64,9 +63,7 @@ def finalize_logging():
     del tfh
 
     fh = logging.FileHandler("logs/bot.log", mode='a')
-    fh.setFormatter(logging.Formatter(
-        fmt="[%(relativeCreated).9f] %(name)s-%(levelname)s: %(message)s"
-    ))
+    fh.setFormatter(logging.Formatter(fmt="[%(relativeCreated).9f] %(name)s-%(levelname)s: %(message)s"))
     fh.setLevel(logging.DEBUG)
     LOG.addHandler(fh)
 
@@ -75,7 +72,7 @@ def finalize_logging():
     dlog = logging.getLogger('discord')
     dlh = logging.StreamHandler(stream=sys.stdout)
     dlh.terminator = ''
-    dlh.setFormatter(logging.Formatter('.'))
+    dlh.setFormatter(logging.Formatter('.', validate=False))
     dlog.addHandler(dlh)
 
 

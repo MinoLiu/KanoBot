@@ -12,6 +12,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Config:
+
     def __init__(self, config_file):
         self.config_file = config_file
         self.find_config()
@@ -54,8 +55,9 @@ class Config:
         self.consumer_secret = config.get('Bot', 'ConsumerSecret', fallback=ConfigDefaults.consumer_secret)
         self.access_token = config.get('Bot', 'AccessToken', fallback=ConfigDefaults.access_token)
         self.access_token_secret = config.get('Bot', 'AccessTokenSecret', fallback=ConfigDefaults.access_token_secret)
-        self.enable_change_avatar = config.get('Bot', 'EnableChangeAvatar',
-                                               fallback=ConfigDefaults.enable_change_avatar)
+        self.enable_change_avatar = config.get(
+            'Bot', 'EnableChangeAvatar', fallback=ConfigDefaults.enable_change_avatar
+        )
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.banned_file = config.get('Files', 'BannedFile', fallback=ConfigDefaults.banned_file)
         self.webhook_file = config.get('Files', 'WebhookFile', fallback=ConfigDefaults.webhook_file)

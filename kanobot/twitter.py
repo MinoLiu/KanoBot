@@ -39,6 +39,7 @@ def webhook_post(url, data):
 
 
 class StdOutListener(StreamListener):
+
     def __init__(self, dataD, api=None):
         self.api = api or API()
         self.dataD = dataD
@@ -102,30 +103,33 @@ class StdOutListener(StreamListener):
         is received from the server. Allows the listener
         to perform some work prior to entering the read loop.
         """
-        LOG.info('Twitter stream success connected')
+        LOG.info(strftime("[%Y-%m-%d %H:%M:%S]", gmtime()) + ' Twitter stream successful connected')
         return
 
     def on_error(self, status_code):
         """Called when a non-200 status code is returned"""
-        LOG.warning('Twitter stream on error({}) retry in few second.'.format(status_code))
+        LOG.warning(
+            strftime("[%Y-%m-%d %H:%M:%S]", gmtime()) + f' Twitter stream on error({status_code}) retry in few second.'
+        )
         return
 
     def on_timeout(self):
         """Called when stream connection times out"""
-        LOG.warning('Twitter stream connection times out')
+        LOG.warning(strftime("[%Y-%m-%d %H:%M:%S]", gmtime()) + ' Twitter stream connection times out')
         return
 
     def keep_alive(self):
         """Called when a keep-alive arrived"""
-        LOG.debug('Twitter stream keep-alive')
+        LOG.debug(strftime("[%Y-%m-%d %H:%M:%S]", gmtime()) + ' Twitter stream keep-alive')
         return
 
 
 class StdOutStream(Stream):
+
     def __init__(self, auth, listener, **options):
         super().__init__(auth, listener, **options)
 
     def on_closed(self, resp):
         """ Called when the response has been closed by Twitter """
-        LOG.warning('Twitter stream has been closed by Twitter')
-        pass
+        LOG.warning(strftime("[%Y-%m-%d %H:%M:%S]", gmtime()) + ' Twitter stream has been closed by Twitter')
+        return

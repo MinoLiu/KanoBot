@@ -13,6 +13,7 @@ class InvalidPath(Exception):
 
 
 class JsonIO(dict):
+
     def save(self, filename, data):
         """
         Save json in file
@@ -36,7 +37,7 @@ class JsonIO(dict):
 
     def get(self, filename):
         """
-        get json from file 
+        get json from file
         @param {String} filename - The filename.
         """
         if not os.path.isfile(filename):

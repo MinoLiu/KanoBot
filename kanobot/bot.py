@@ -42,6 +42,7 @@ def _get_variable(name):
 
 
 class Bot(discord.Client):
+
     def __init__(self, config_file=None):
         if config_file is None:
             config_file = ConfigDefaults.config_file
@@ -169,6 +170,7 @@ class Bot(discord.Client):
     # pylint: disable=E0213
     # pylint: disable=E1102
     def ensure_appinfo(func):
+
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
             await self._cache_app_info()
@@ -188,7 +190,7 @@ class Bot(discord.Client):
         return discord.utils.oauth_url(self.cached_app_info.id, permissions=permissions, guild=guild)
 
     async def _schedule_restart(self):
-        await asyncio.sleep(24*3600)
+        await asyncio.sleep(24 * 3600)
         await self.restart()
 
     async def change_kano_avatar(self):
@@ -210,7 +212,6 @@ class Bot(discord.Client):
             await self._start_twitter()
             if self.config.enable_change_avatar:
                 await self.change_kano_avatar()
-        
 
     async def _start_twitter(self):
         data = self.jsonIO.get(self.config.webhook_file)
@@ -218,7 +219,11 @@ class Bot(discord.Client):
         self.twitter_listener = StdOutListener(data)
         self.twitter_stream = StdOutStream(self.config.twitter_auth, self.twitter_listener, retry_420=60)
         if data.get('twitter_ids', []):
-            self.twitter_stream.filter(list(set(data.get('twitter_ids'))), None, True)
+            try:
+                self.twitter_stream.filter(list(set(data.get('twitter_ids'))), is_async=True)
+            except Exception as err:
+                LOG.debug(f"Twitter stream raise Exception {err}")
+                await self._start_twitter()
 
     async def _reload_twitter(self):
         data = self.jsonIO.get(self.config.webhook_file)
@@ -226,9 +231,7 @@ class Bot(discord.Client):
         self.twitter_stream.disconnect()
         await asyncio.sleep(10)
         del self.twitter_stream
-        self.twitter_stream = StdOutStream(self.config.twitter_auth, self.twitter_listener, retry_420=60)
-        if data.get('twitter_ids', []):
-            self.twitter_stream.filter(list(set(data.get('twitter_ids'))), None, True)
+        await self._start_twitter()
 
     def _get_owner(self, *, guild=None):
         return discord.utils.find(
@@ -329,7 +332,7 @@ class Bot(discord.Client):
         LOG.info('Connected!   -   KanoBot\n')
 
         self.init_ok = True
-        
+
         asyncio.ensure_future(self._schedule_restart())
         LOG.info('Schedule restart set')
         ################################
@@ -585,8 +588,8 @@ class Bot(discord.Client):
             # Add if token, else
             raise exceptions.HelpfulError(
                 "Bot cannot login, bad credentials.", "Fix your %s in the config.ini file.  "
-                "Remember that each field should be on their own line." % ['Token', 'Credentials'
-                                                                          ][len(self.config.auth)]
+                "Remember that each field should be on their own line." %
+                ['Token', 'Credentials'][len(self.config.auth)]
             )  # ^^^^ In theory self.config.auth should never have no items
         finally:
             try:
@@ -601,12 +604,14 @@ class Bot(discord.Client):
 
 
 class Kanobot(Bot):
+
     def __init__(self, config_file=None):
         super().__init__(config_file)
 
     # pylint: disable=E0213
     # pylint: disable=E1102
     def owner_only(func):
+
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
             # Only allow the owner to use these commands
@@ -622,6 +627,7 @@ class Kanobot(Bot):
         return wrapper
 
     def admin_only(func):
+
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
             # Only allow the admin to use these commands
@@ -637,6 +643,7 @@ class Kanobot(Bot):
         return wrapper
 
     def dev_only(func):
+
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
             orig_msg = _get_variable('message')
@@ -651,6 +658,7 @@ class Kanobot(Bot):
         return wrapper
 
     def require_twitter(func):
+
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
             if not self.twitter:
@@ -663,7 +671,7 @@ class Kanobot(Bot):
             return await func(self, *args, **kwargs)
 
         return wrapper
-    
+
     @admin_only
     async def cmd_joinserver(self, message, server_link=None):
         """
@@ -1110,8 +1118,11 @@ class Kanobot(Bot):
                     await _message.add_reaction(reaction.emoji)
 
                 await self.safe_delete_message(msg)
-            return Response('Role management completed successfully!\nNow you can \
-                    edit your message', delete_after=15)
+            return Response(
+                'Role management completed successfully!\nNow you can \
+                    edit your message',
+                delete_after=15
+            )
 
         msg = await self.safe_send_message(message.channel, 'Create a message to manage role?')
         for x in emojis[:2]:
@@ -1154,6 +1165,7 @@ class Kanobot(Bot):
                 for x in emojis:
                     await msg.add_reaction(x)
                 try:
+
                     def _check(reaction, user):
                         return user == message.author and str(reaction.emoji) in emojis
 

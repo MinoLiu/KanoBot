@@ -4,13 +4,12 @@ verify_ssl = true
 name = "pypi"
 
 [dev-packages]
-autopep8 = "*"
 pylint = "*"
 "flake8" = "*"
 yapf = "*"
 
 [requires]
-python_version = "3.7"
+python_version = "3.8"
 
 [packages]
 colorlog = "*"
