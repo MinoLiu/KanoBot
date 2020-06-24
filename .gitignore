@@ -1,6 +1,7 @@
 # config
 role_manager.json
 webhook.json
+reply_file.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

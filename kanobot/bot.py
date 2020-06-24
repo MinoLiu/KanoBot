@@ -8,6 +8,8 @@ import traceback
 import aiohttp
 import random
 import math
+import time
+from threading import Thread
 
 from datetime import datetime
 
@@ -57,6 +59,7 @@ class Bot(discord.Client):
         self.twitter_listener = None
         self.twitter_stream = None
         self.role_manager = self.jsonIO.get(self.config.role_manager_file)
+        self.reply_message = self.jsonIO.get(self.config.reply_file)
 
         self._setup_logging()
         super().__init__()
@@ -189,10 +192,6 @@ class Bot(discord.Client):
         """ TODO """
         return discord.utils.oauth_url(self.cached_app_info.id, permissions=permissions, guild=guild)
 
-    async def _schedule_restart(self):
-        await asyncio.sleep(24 * 3600)
-        await self.restart()
-
     async def change_kano_avatar(self):
         kano_obj = self.twitter.get_user('@kano_2525')
         url = kano_obj.profile_image_url_https.replace("_normal", "")
@@ -209,29 +208,30 @@ class Bot(discord.Client):
         await self.config.async_validate(self)
         self.config.validate_twitter()
         if self.config.twitter_auth:
-            await self._start_twitter()
+            self.twitter = API(self.config.twitter_auth)
+            Thread(target=self._start_twitter, daemon=True).start()
             if self.config.enable_change_avatar:
                 await self.change_kano_avatar()
 
-    async def _start_twitter(self):
+    def _start_twitter(self):
         data = self.jsonIO.get(self.config.webhook_file)
-        self.twitter = API(self.config.twitter_auth)
         self.twitter_listener = StdOutListener(data)
         self.twitter_stream = StdOutStream(self.config.twitter_auth, self.twitter_listener, retry_420=60)
-        if data.get('twitter_ids', []):
-            try:
-                self.twitter_stream.filter(list(set(data.get('twitter_ids'))), is_async=True)
-            except Exception as err:
-                LOG.debug(f"Twitter stream raise Exception {err}")
-                await self._start_twitter()
+        while True:
+            data = self.jsonIO.get(self.config.webhook_file)
+            self.twitter_listener.reset(data)
+
+            if data.get('twitter_ids', []):
+                try:
+                    self.twitter_stream.filter(list(set(data.get('twitter_ids'))))
+                except Exception as err:
+                    LOG.debug(f"Twitter stream raise Exception {err}")
+                    self.twitter_stream.disconnect()
+            else:
+                time.sleep(60)
 
     async def _reload_twitter(self):
-        data = self.jsonIO.get(self.config.webhook_file)
-        self.twitter_listener.reset(data)
         self.twitter_stream.disconnect()
-        await asyncio.sleep(10)
-        del self.twitter_stream
-        await self._start_twitter()
 
     def _get_owner(self, *, guild=None):
         return discord.utils.find(
@@ -333,8 +333,6 @@ class Bot(discord.Client):
 
         self.init_ok = True
 
-        asyncio.ensure_future(self._schedule_restart())
-        LOG.info('Schedule restart set')
         ################################
 
         LOG.info(
@@ -432,13 +430,19 @@ class Bot(discord.Client):
             return
 
         message_content = message.content.strip()
-
-        if not message_content.startswith(self.config.command_prefix):
+        if not message_content.startswith(self.config.command_prefix
+                                         ) and not self.reply_message.get(str(message.guild.id), None):
             return
 
         if message.author == self.user:
-            LOG.warning("Ignoring command from myself (%s)", message.content)
+            # Ignoring command from myself
             return
+
+        if not message_content.startswith(self.config.command_prefix):
+            for key, item in self.reply_message[str(message.guild.id)].items():
+                if key in message_content:
+                    LOG.info("{0.id}/{0!s}: {1}".format(message.author, message_content.replace('\n', '\n... ')))
+                    await self.safe_send_message(message.channel, item)
 
         command, *args = message_content.split(' ')
         command = command[len(self.config.command_prefix):].lower().strip()
@@ -902,7 +906,7 @@ class Kanobot(Bot):
 
         if action == 'reload':
             await self._reload_twitter()
-            return Response(':ok_hand:\n Reload success')
+            return Response(':ok_hand:\n Twitter Disconnected, It will reconnect in few minutes!')
 
         if includeReplyToUser and str(includeReplyToUser).lower()[0] == 't':
             includeReplyToUser = True
@@ -1215,3 +1219,57 @@ class Kanobot(Bot):
                     edit your message',
                 delete_after=15
             )
+
+    @admin_only
+    async def cmd_add_reply(self, guild, author, certain_text, reply_message):
+        """
+        Usage:
+            {command_prefix}add_reply certain_text reply_message
+        Reply when text show up
+        example:
+           {command_prefix}add_reply lol :joy:
+                A: lol
+                bot: :joy:
+            {command_prefix}add_reply lol "@user :neko_3:"
+                A: ~~lol~~, :neko_2: :neko_3:
+                bot: @user :neko_3:
+        """
+        if not self.reply_message.get(str(guild.id), None):
+            self.reply_message[str(guild.id)] = {}
+
+        self.reply_message[str(guild.id)][certain_text] = reply_message
+        self.jsonIO.save(self.config.reply_file, self.reply_message)
+        return Response('Reply successfully added!', delete_after=15)
+
+    @admin_only
+    async def cmd_remove_reply(self, guild, certain_text):
+        """
+        Usage:
+            {command_prefix}remove_reply certain_text
+        example:
+           {command_prefix}remove_reply lol
+        """
+        if not self.reply_message.get(str(guild.id), None) or not self.reply_message[str(guild.id
+                                                                                        )].get(certain_text, None):
+            return Response('Not found')
+
+        del self.reply_message[str(guild.id)][certain_text]
+        self.jsonIO.save(self.config.reply_file, self.reply_message)
+        return Response('Reply successfully deleted!', delete_after=15)
+
+    @admin_only
+    async def cmd_show_reply(self, guild, author):
+        """
+        Usage:
+            {command_prefix}show_reply
+        Reply when text show up
+        example:
+           {command_prefix}show_reply
+                lol : :joy:
+        """
+        if not self.reply_message.get(str(guild.id), None):
+            return Response("Nothing here")
+        text = "\n"
+        for key, item in self.reply_message[str(guild.id)].items():
+            text += f"{key}: \n{item}\n"
+        return Response(text, reply=True, delete_after=40)

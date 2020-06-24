@@ -123,6 +123,11 @@ class StdOutListener(StreamListener):
         LOG.debug(strftime("[%Y-%m-%d %H:%M:%S]", gmtime()) + ' Twitter stream keep-alive')
         return
 
+    def on_exception(self, exception):
+        """Called when an unhandled exception occurs."""
+        LOG.debug(strftime("[%Y-%m-%d %H:%M:%S]", gmtime()) + exception)
+        return
+
 
 class StdOutStream(Stream):
 

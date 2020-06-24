@@ -62,6 +62,7 @@ class Config:
         self.banned_file = config.get('Files', 'BannedFile', fallback=ConfigDefaults.banned_file)
         self.webhook_file = config.get('Files', 'WebhookFile', fallback=ConfigDefaults.webhook_file)
         self.role_manager_file = config.get('Files', 'RoleManagerFile', fallback=ConfigDefaults.role_manager_file)
+        self.reply_file = config.get('Files', 'ReplyFile', fallback=ConfigDefaults.reply_file)
 
         self.run_checks()
 
@@ -268,3 +269,4 @@ class ConfigDefaults:
     bind_file = 'config/bind.txt'
     webhook_file = 'config/webhook.json'
     role_manager_file = 'config/role_manager.json'
+    reply_file = 'config/reply_file.json'
