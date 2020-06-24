@@ -430,19 +430,19 @@ class Bot(discord.Client):
             return
 
         message_content = message.content.strip()
-        if not message_content.startswith(self.config.command_prefix
-                                         ) and not self.reply_message.get(str(message.guild.id), None):
+        if not message_content.startswith(self.config.command_prefix):
             return
 
         if message.author == self.user:
-            # Ignoring command from myself
+            LOG.warning("Ignoring command from myself")
             return
 
-        if not message_content.startswith(self.config.command_prefix):
+        if self.reply_message.get(str(message.guild.id), None):
             for key, item in self.reply_message[str(message.guild.id)].items():
                 if key in message_content:
                     LOG.info("{0.id}/{0!s}: {1}".format(message.author, message_content.replace('\n', '\n... ')))
                     await self.safe_send_message(message.channel, item)
+                    break
 
         command, *args = message_content.split(' ')
         command = command[len(self.config.command_prefix):].lower().strip()
@@ -1228,10 +1228,10 @@ class Kanobot(Bot):
         Reply when text show up
         example:
            {command_prefix}add_reply lol :joy:
-                A: lol
+                A: !lol
                 bot: :joy:
             {command_prefix}add_reply lol "@user :neko_3:"
-                A: ~~lol~~, :neko_2: :neko_3:
+                A: !~~lol~~, :neko_2: :neko_3:
                 bot: @user :neko_3:
         """
         if not self.reply_message.get(str(guild.id), None):
