@@ -441,7 +441,7 @@ class Bot(discord.Client):
             for key, item in self.reply_message[str(message.guild.id)].items():
                 if key in message_content:
                     LOG.info("{0.id}/{0!s}: {1}".format(message.author, message_content.replace('\n', '\n... ')))
-                    await self.safe_send_message(message.channel, item)
+                    await self.safe_send_message(message.channel, random.choice(item))
                     break
 
         command, *args = message_content.split(' ')
@@ -1236,8 +1236,11 @@ class Kanobot(Bot):
         """
         if not self.reply_message.get(str(guild.id), None):
             self.reply_message[str(guild.id)] = {}
+        
+        if not self.reply_message[str(guild.id)].get(certain_text, None):
+            self.reply_message[str(guild.id)][certain_text] = []
 
-        self.reply_message[str(guild.id)][certain_text] = reply_message
+        self.reply_message[str(guild.id)][certain_text].append(reply_message)
         self.jsonIO.save(self.config.reply_file, self.reply_message)
         return Response('Reply successfully added!', delete_after=15)
 
