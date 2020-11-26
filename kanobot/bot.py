@@ -66,11 +66,10 @@ class Bot(discord.Client):
         self.aiosession = aiohttp.ClientSession(loop=self.loop)
         self.http.user_agent += ' Kanobot'
         self.colors = [
-            0x7f0000, 0x535900, 0x40d9ff, 0x8c7399, 0xd97b6c, 0xf2ff40, 0x8fb6bf, 0x502d59, 0x66504d, 0x89b359,
-            0x00aaff, 0xd600e6, 0x401100, 0x44ff00, 0x1a2b33, 0xff00aa, 0xff8c40, 0x17330d, 0x0066bf, 0x33001b,
-            0xb39886, 0xbfffd0, 0x163a59, 0x8c235b, 0x8c5e00, 0x00733d, 0x000c59, 0xffbfd9, 0x4c3300, 0x36d98d,
-            0x3d3df2, 0x590018, 0xf2c200, 0x264d40, 0xc8bfff, 0xf23d6d, 0xd9c36c, 0x2db3aa, 0xb380ff, 0xff0022,
-            0x333226, 0x005c73, 0x7c29a6
+            0x7f0000, 0x535900, 0x40d9ff, 0x8c7399, 0xd97b6c, 0xf2ff40, 0x8fb6bf, 0x502d59, 0x66504d, 0x89b359, 0x00aaff, 0xd600e6, 0x401100,
+            0x44ff00, 0x1a2b33, 0xff00aa, 0xff8c40, 0x17330d, 0x0066bf, 0x33001b, 0xb39886, 0xbfffd0, 0x163a59, 0x8c235b, 0x8c5e00, 0x00733d,
+            0x000c59, 0xffbfd9, 0x4c3300, 0x36d98d, 0x3d3df2, 0x590018, 0xf2c200, 0x264d40, 0xc8bfff, 0xf23d6d, 0xd9c36c, 0x2db3aa, 0xb380ff,
+            0xff0022, 0x333226, 0x005c73, 0x7c29a6
         ]
 
     def __del__(self):
@@ -234,9 +233,7 @@ class Bot(discord.Client):
         self.twitter_stream.disconnect()
 
     def _get_owner(self, *, guild=None):
-        return discord.utils.find(
-            lambda m: m.id == self.config.owner_id, guild.members if guild else self.get_all_members()
-        )
+        return discord.utils.find(lambda m: m.id == self.config.owner_id, guild.members if guild else self.get_all_members())
 
     async def safe_send_message(self, dest, content, **kwargs):
         tts = kwargs.pop('tts', False)
@@ -335,11 +332,7 @@ class Bot(discord.Client):
 
         ################################
 
-        LOG.info(
-            "Bot:   {0}/{1}#{2}{3}".format(
-                self.user.id, self.user.name, self.user.discriminator, ' [BOT]' if self.user.bot else ' [Userbot]'
-            )
-        )
+        LOG.info("Bot:   {0}/{1}#{2}{3}".format(self.user.id, self.user.name, self.user.discriminator, ' [BOT]' if self.user.bot else ' [Userbot]'))
 
         owner = self._get_owner()
         if owner and self.guilds:
@@ -539,8 +532,7 @@ class Bot(discord.Client):
                 if response.reply:
                     if isinstance(content, discord.Embed):
                         content.description = '{} {}'.format(
-                            message.author.mention,
-                            content.description if content.description is not discord.Embed.Empty else ''
+                            message.author.mention, content.description if content.description is not discord.Embed.Empty else ''
                         )
                     else:
                         content = '{}: {}'.format(message.author.mention, content)
@@ -592,8 +584,7 @@ class Bot(discord.Client):
             # Add if token, else
             raise exceptions.HelpfulError(
                 "Bot cannot login, bad credentials.", "Fix your %s in the config.ini file.  "
-                "Remember that each field should be on their own line." %
-                ['Token', 'Credentials'][len(self.config.auth)]
+                "Remember that each field should be on their own line." % ['Token', 'Credentials'][len(self.config.auth)]
             )  # ^^^^ In theory self.config.auth should never have no items
         finally:
             try:
@@ -725,9 +716,7 @@ class Kanobot(Bot):
                 return False
 
         deleted = await channel.purge(limit=search_range, check=check_user, bulk=True)
-        return Response(
-            'successfully deleted {} messages from this channel!'.format(len(deleted)), reply=True, delete_after=8
-        )
+        return Response('successfully deleted {} messages from this channel!'.format(len(deleted)), reply=True, delete_after=8)
 
     @admin_only
     async def cmd_restart(self, channel):
@@ -758,8 +747,7 @@ class Kanobot(Bot):
         except discord.HTTPException:
             raise exceptions.CommandError(
                 "Failed to change name. Did you change names too many times? "
-                "Remember name changes are limited to twice per hour.",
-                expire_in=20
+                "Remember name changes are limited to twice per hour.", expire_in=20
             )
 
         except Exception as e:
@@ -781,9 +769,7 @@ class Kanobot(Bot):
             thing = url.strip('<>')
         else:
             return Response(
-                "```\n{}```".format(
-                    dedent(self.cmd_setavatar.__doc__).format(command_prefix=self.config.command_prefix)
-                ),
+                "```\n{}```".format(dedent(self.cmd_setavatar.__doc__).format(command_prefix=self.config.command_prefix)),
                 reply=True,
                 delete_after=30
             )
@@ -822,10 +808,7 @@ class Kanobot(Bot):
         if command:
             cmd = getattr(self, 'cmd_' + command, None)
             if cmd and not hasattr(cmd, 'dev_cmd'):
-                return Response(
-                    "```\n{}```".format(dedent(cmd.__doc__)).format(command_prefix=self.config.command_prefix),
-                    embed=False
-                )
+                return Response("```\n{}```".format(dedent(cmd.__doc__)).format(command_prefix=self.config.command_prefix), embed=False)
             else:
                 return Response("No such command", delete_after=10)
 
@@ -858,16 +841,7 @@ class Kanobot(Bot):
 
     @admin_only
     @require_twitter
-    async def cmd_twitter(
-        self,
-        guild,
-        action,
-        name=None,
-        channel_name=None,
-        includeReplyToUser=None,
-        includeUserReply=None,
-        includeRetweet=None
-    ):
+    async def cmd_twitter(self, guild, action, name=None, channel_name=None, includeReplyToUser=None, includeUserReply=None, includeRetweet=None):
         """
         Usage:
             {command_prefix}twitter [+, -, show, reload]
@@ -954,9 +928,7 @@ class Kanobot(Bot):
             try:
                 if category_id is None or guild.get_channel(category_id) is None:
                     overwrites = {guild.default_role: discord.PermissionOverwrite(send_messages=False)}
-                    data['Category_ids'][str(
-                        guild.id
-                    )] = category_id = (await guild.create_category_channel('twitter', overwrites=overwrites)).id
+                    data['Category_ids'][str(guild.id)] = category_id = (await guild.create_category_channel('twitter', overwrites=overwrites)).id
 
                 category = guild.get_channel(category_id)
 
@@ -1015,6 +987,46 @@ class Kanobot(Bot):
 
         return Response('successfully kicked {} from this server!'.format(", ".join(users)))
 
+    async def cmd_rps(self, message):
+        """
+        Usage:
+            {command_prefix}rps
+        A game of Rock, Paper, Scissors!
+        """
+        rps = ["🪨", "📜", "✂️"]
+
+        bot_choice = random.choice(rps)
+
+        msg = await self.safe_send_message(
+            message.channel, "Let's play a game of Rock, Paper, Scissors! Please react what you would like to choose with the emojis below!"
+        )
+        for x in rps:
+            await msg.add_reaction(x)
+
+        try:
+
+            def check(reaction, user):
+                return user == message.author and str(reaction.emoji) in rps and reaction.message.id == msg.id
+
+            choice, _ = await self.wait_for('reaction_add', timeout=60.0, check=check)
+            choice = str(choice)
+
+            if choice == "🪨" and bot_choice == "✂️":
+                return Response(f"{bot_choice}\nYou win! I had fun, let's play again!", reply=True, embed=False)
+            elif choice == "📜" and bot_choice == "🪨":
+                return Response(f"{bot_choice}\nYou win! I had fun, let's play again!", reply=True, embed=False)
+            elif choice == "✂️" and bot_choice == "📜":
+                return Response(f"{bot_choice}\nYou win! I had fun, let's play again!", reply=True, embed=False)
+            elif choice == bot_choice:
+                return Response(f"{bot_choice}\nIt's a tie!", reply=True, embed=False)
+            else:
+                return Response(f"{bot_choice}\nYou lost! I had fun, let's play again!", reply=True, embed=False)
+        except asyncio.TimeoutError:
+            await self.safe_delete_message(msg)
+            return
+
+        await self.safe_delete_message(msg)
+
     @admin_only
     async def cmd_role_manager(self, message):
         """
@@ -1051,9 +1063,7 @@ class Kanobot(Bot):
                 for idx, r in enumerate(roles[i * 5:(i + 1) * 5]):
                     new_context += '{} {}\n'.format(alphabet[idx], r.name)
                 else:
-                    new_context += '{}/{}\n'.format(
-                        len(roles) if (i + 1) * 5 >= len(roles) else (i + 1) * 5, len(roles)
-                    )
+                    new_context += '{}/{}\n'.format(len(roles) if (i + 1) * 5 >= len(roles) else (i + 1) * 5, len(roles))
                 msg = await self.safe_send_message(message.channel, new_context)
                 idx = len(roles) if (i + 1) * 5 >= len(roles) else (i + 1) * 5
                 for x in alphabet[:idx - i * 5]:
@@ -1065,7 +1075,7 @@ class Kanobot(Bot):
                     def _check(reaction, user):
                         return user == message.author and (
                             str(reaction.emoji) in emojis or str(reaction.emoji) in alphabet
-                        )
+                        ) and reaction.message.id == msg.id
 
                     reaction, _ = await self.wait_for('reaction_add', timeout=60.0, check=_check)
                 except asyncio.TimeoutError:
@@ -1102,7 +1112,7 @@ class Kanobot(Bot):
                 else:
                     idx = alphabet.index(str_emoji)
                     msg = await self.safe_delete_message(msg)
-                    msg = await self.safe_send_message(message.channel, 'Please add a reaction for this role.')
+                    msg = await self.safe_send_message(message.channel, 'Please add a reaction for this role at this message.')
                     try:
 
                         def _check(reaction, user):
@@ -1122,11 +1132,8 @@ class Kanobot(Bot):
                     await _message.add_reaction(reaction.emoji)
 
                 await self.safe_delete_message(msg)
-            return Response(
-                'Role management completed successfully!\nNow you can \
-                    edit your message',
-                delete_after=15
-            )
+            return Response('Role management completed successfully!\nNow you can \
+                    edit your message', delete_after=15)
 
         msg = await self.safe_send_message(message.channel, 'Create a message to manage role?')
         for x in emojis[:2]:
@@ -1214,11 +1221,8 @@ class Kanobot(Bot):
                     self.jsonIO.save(self.config.role_manager_file, role_manager)
                     self.role_manager = role_manager
 
-            return Response(
-                'Role management completed successfully!\nNow you can \
-                    edit your message',
-                delete_after=15
-            )
+            return Response('Role management completed successfully!\nNow you can \
+                    edit your message', delete_after=15)
 
     @admin_only
     async def cmd_add_reply(self, guild, author, certain_text, reply_message):
@@ -1236,7 +1240,7 @@ class Kanobot(Bot):
         """
         if not self.reply_message.get(str(guild.id), None):
             self.reply_message[str(guild.id)] = {}
-        
+
         if not self.reply_message[str(guild.id)].get(certain_text, None):
             self.reply_message[str(guild.id)][certain_text] = []
 
@@ -1252,8 +1256,7 @@ class Kanobot(Bot):
         example:
            {command_prefix}remove_reply lol
         """
-        if not self.reply_message.get(str(guild.id), None) or not self.reply_message[str(guild.id
-                                                                                        )].get(certain_text, None):
+        if not self.reply_message.get(str(guild.id), None) or not self.reply_message[str(guild.id)].get(certain_text, None):
             return Response('Not found')
 
         del self.reply_message[str(guild.id)][certain_text]
