@@ -430,17 +430,16 @@ class Bot(discord.Client):
             LOG.warning("Ignoring command from myself")
             return
 
-        if self.reply_message.get(str(message.guild.id), None):
-            for key, item in self.reply_message[str(message.guild.id)].items():
-                if key in message_content:
-                    LOG.info("{0.id}/{0!s}: {1}".format(message.author, message_content.replace('\n', '\n... ')))
-                    await self.safe_send_message(message.channel, random.choice(item))
-                    break
-
         command, *args = message_content.split(' ')
         command = command[len(self.config.command_prefix):].lower().strip()
         handler = getattr(self, 'cmd_' + command, None)
         if not handler:
+            if self.reply_message.get(str(message.guild.id), None):
+                for key, item in self.reply_message[str(message.guild.id)].items():
+                    if key in message_content:
+                        LOG.info("{0.id}/{0!s}: {1}".format(message.author, message_content.replace('\n', '\n... ')))
+                        await self.safe_send_message(message.channel, random.choice(item))
+                        break
             return
 
         private_msg_list = ['joinserver', 'ban', 'setavatar', 'restart', 'help']
@@ -1263,19 +1262,26 @@ class Kanobot(Bot):
         self.jsonIO.save(self.config.reply_file, self.reply_message)
         return Response('Reply successfully deleted!', delete_after=15)
 
-    @admin_only
-    async def cmd_show_reply(self, guild, author):
+    async def cmd_show_reply(self, guild, certain_text=None):
         """
         Usage:
             {command_prefix}show_reply
         Reply when text show up
         example:
            {command_prefix}show_reply
-                lol : :joy:
+                lol
+                lol2
+           {command_prefix}show_reply lol
+                :joy:
         """
         if not self.reply_message.get(str(guild.id), None):
             return Response("Nothing here")
         text = "\n"
         for key, item in self.reply_message[str(guild.id)].items():
-            text += f"{key}: \n{item}\n"
-        return Response(text, reply=True, delete_after=40)
+            if certain_text is None:
+                text += f"{key}\n"
+            elif certain_text == key:
+                for index, _item in enumerate(item):
+                    text += f"{index+1}. {_item}\n"
+
+        return Response(text, reply=True)
