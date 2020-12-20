@@ -434,12 +434,10 @@ class Bot(discord.Client):
         command = command[len(self.config.command_prefix):].lower().strip()
         handler = getattr(self, 'cmd_' + command, None)
         if not handler:
-            if self.reply_message.get(str(message.guild.id), None):
-                for key, item in self.reply_message[str(message.guild.id)].items():
-                    if key in message_content:
-                        LOG.info("{0.id}/{0!s}: {1}".format(message.author, message_content.replace('\n', '\n... ')))
-                        await self.safe_send_message(message.channel, random.choice(item))
-                        break
+            message_content = message_content[len(self.config.command_prefix):]
+            if self.reply_message.get(str(message.guild.id), None) and message_content in self.reply_message[str(message.guild.id)].keys():
+                LOG.info("{0.id}/{0!s}: {1}".format(message.author, message_content.replace('\n', '\n... ')))
+                await self.safe_send_message(message.channel, random.choice(self.reply_message[str(message.guild.id)][message_content]))
             return
 
         private_msg_list = ['joinserver', 'ban', 'setavatar', 'restart', 'help']
