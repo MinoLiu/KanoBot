@@ -26,9 +26,7 @@ class Config:
                 "One or more required config sections are missing.",
                 "Fix your config!"
                 "Each [Section] should be on its own line with "
-                "nothing else on it. The following sections are missing: {}".format(
-                    ', '.join(['[%s]' % s for s in confsections])
-                ),
+                "nothing else on it. The following sections are missing: {}".format(', '.join(['[%s]' % s for s in confsections])),
                 preface="An error has occured parsing the config:\n"
             )
         self._confpreface = "An error has occured reading the config:\n"
@@ -40,7 +38,6 @@ class Config:
         self._login_token = config.get('Credentials', 'Token', fallback=ConfigDefaults.token)
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.dev_ids = config.get('Permissions', 'DevIDs', fallback=ConfigDefaults.dev_ids)
-        self.admin_ids = config.get('Permissions', 'AdminIDs', fallback=ConfigDefaults.admin_ids)
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.block_channels = config.get('Chat', 'BlockChannels', fallback=ConfigDefaults.block_channels)
         self.embeds = config.getboolean('Chat', 'Embeds', fallback=ConfigDefaults.embeds)
@@ -55,9 +52,7 @@ class Config:
         self.consumer_secret = config.get('Bot', 'ConsumerSecret', fallback=ConfigDefaults.consumer_secret)
         self.access_token = config.get('Bot', 'AccessToken', fallback=ConfigDefaults.access_token)
         self.access_token_secret = config.get('Bot', 'AccessTokenSecret', fallback=ConfigDefaults.access_token_secret)
-        self.enable_change_avatar = config.get(
-            'Bot', 'EnableChangeAvatar', fallback=ConfigDefaults.enable_change_avatar
-        )
+        self.enable_change_avatar = config.get('Bot', 'EnableChangeAvatar', fallback=ConfigDefaults.enable_change_avatar)
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.banned_file = config.get('Files', 'BannedFile', fallback=ConfigDefaults.banned_file)
         self.webhook_file = config.get('Files', 'WebhookFile', fallback=ConfigDefaults.webhook_file)
@@ -71,11 +66,7 @@ class Config:
         Validation logic for bot settings.
         """
         if not self._login_token:
-            raise HelpfulError(
-                "No login credentials were specified in the config.",
-                "Please fill in the Token field.",
-                preface=self._confpreface
-            )
+            raise HelpfulError("No login credentials were specified in the config.", "Please fill in the Token field.", preface=self._confpreface)
 
         else:
             self.auth = (self._login_token,)
@@ -99,11 +90,7 @@ class Config:
                 self.owner_id = None
 
         if not self.owner_id:
-            raise HelpfulError(
-                "No OwnerID was set.",
-                "Please set the OwnerID option in {}".format(self.config_file),
-                preface=self._confpreface
-            )
+            raise HelpfulError("No OwnerID was set.", "Please set the OwnerID option in {}".format(self.config_file), preface=self._confpreface)
 
         if self.dev_ids:
             try:
@@ -114,16 +101,6 @@ class Config:
                 self.dev_ids = set()
 
             self.dev_ids = set(int(item.replace(',', ' ').strip()) for item in self.dev_ids)
-
-        if self.admin_ids:
-            try:
-                self.admin_ids = set(x for x in self.admin_ids.split() if x)
-            except Exception:
-                LOG.warning("AdminIDs data is invalid \
-                    will not have any admins")
-                self.admin_ids = set()
-
-            self.admin_ids = set(int(item.replace(',', ' ').strip()) for item in self.admin_ids)
 
         if self.block_channels:
             try:
@@ -151,8 +128,7 @@ class Config:
         if self.owner_id == 'auto':
             if not bot.user.bot:
                 raise HelpfulError(
-                    "Invalid parameter \"auto\" for OwnerID option.",
-                    "Only bot accounts can use the \"auto\" option.  Please "
+                    "Invalid parameter \"auto\" for OwnerID option.", "Only bot accounts can use the \"auto\" option.  Please "
                     "set the OwnerID in the config.",
                     preface=self._confpreface2
                 )
@@ -173,7 +149,6 @@ class Config:
                 "the correct information.",
                 preface=self._confpreface2
             )
-        self.admin_ids.add(self.owner_id)
         self.dev_ids.add(self.owner_id)
 
     def validate_twitter(self):
@@ -200,9 +175,7 @@ class Config:
                 shutil.move(self.config_file + '.ini', self.config_file)
                 LOG.info(
                     "Moving {0} to {1}, \
-                         you should probably turn file extensions on.".format(
-                        self.config_file + '.ini', self.config_file
-                    )
+                         you should probably turn file extensions on.".format(self.config_file + '.ini', self.config_file)
                 )
 
             elif os.path.isfile('config/example_config.ini'):
@@ -233,9 +206,8 @@ class Config:
 
             except ValueError:  # Config id value was changed but its not valid
                 raise HelpfulError(
-                    'Invalid value "{}" for OwnerID, config cannot be loaded.'.format(
-                        config.get('Permissions', 'OwnerID', fallback=None)
-                    ), """The OwnerID option takes a user id"""
+                    'Invalid value "{}" for OwnerID, config cannot be loaded.'.format(config.get('Permissions', 'OwnerID', fallback=None)),
+                    """The OwnerID option takes a user id"""
                 )
 
             except Exception as error:
@@ -249,7 +221,6 @@ class ConfigDefaults:
     owner_id = 'auto'
     timeout = 10.0
     dev_ids = set()
-    admin_ids = set()
     command_prefix = '!'
     debug_mode = False
     debug_level = 'INFO'

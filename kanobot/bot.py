@@ -9,6 +9,7 @@ import aiohttp
 import random
 import math
 import time
+import shlex
 from threading import Thread
 
 from datetime import datetime
@@ -430,7 +431,7 @@ class Bot(discord.Client):
             LOG.warning("Ignoring command from myself")
             return
 
-        command, *args = message_content.split(' ')
+        command, *args = shlex.split(message_content)
         command = command[len(self.config.command_prefix):].lower().strip()
         handler = getattr(self, 'cmd_' + command, None)
         if not handler:
@@ -440,7 +441,7 @@ class Bot(discord.Client):
                 await self.safe_send_message(message.channel, random.choice(self.reply_message[str(message.guild.id)][message_content]))
             return
 
-        private_msg_list = ['joinserver', 'ban', 'setavatar', 'restart', 'help']
+        private_msg_list = ['joinserver', 'setavatar', 'restart', 'help', 'rps']
         if isinstance(message.channel, discord.DMChannel):
             if not (message.author.id == self.config.owner_id and command in private_msg_list):
                 await message.channel.send('You cannot use this bot in private messages.')
@@ -624,8 +625,7 @@ class Kanobot(Bot):
         async def wrapper(self, *args, **kwargs):
             # Only allow the admin to use these commands
             orig_msg = _get_variable('message')
-
-            if orig_msg.author.id in self.config.admin_ids:
+            if isinstance(orig_msg.author, discord.Member) and orig_msg.author.guild_permissions.administrator:
                 # noinspection PyCallingNonCallable
                 return await func(self, *args, **kwargs)
             else:
@@ -664,7 +664,7 @@ class Kanobot(Bot):
 
         return wrapper
 
-    @admin_only
+    @owner_only
     async def cmd_joinserver(self, message, server_link=None):
         """
         Usage:
@@ -715,7 +715,7 @@ class Kanobot(Bot):
         deleted = await channel.purge(limit=search_range, check=check_user, bulk=True)
         return Response('successfully deleted {} messages from this channel!'.format(len(deleted)), reply=True, delete_after=8)
 
-    @admin_only
+    @owner_only
     async def cmd_restart(self, channel):
         """
         Usage:
@@ -821,7 +821,8 @@ class Kanobot(Bot):
                     command_name = att.replace('cmd_', '').lower()
                     commands.append("{}{}".format(self.config.command_prefix, command_name))
                 elif att.startswith('cmd_') and att != 'cmd_help' \
-                        and author.id in self.config.admin_ids \
+                        and isinstance(author, discord.Member) \
+                        and author.guild_permissions.administrator \
                         and hasattr(getattr(self, att), 'admin_cmd'):
                     command_name = att.replace('cmd_', '').lower()
                     commands.append("{}{}".format(self.config.command_prefix, command_name))
@@ -1022,8 +1023,6 @@ class Kanobot(Bot):
             await self.safe_delete_message(msg)
             return
 
-        await self.safe_delete_message(msg)
-
     @admin_only
     async def cmd_role_manager(self, message):
         """
@@ -1222,7 +1221,7 @@ class Kanobot(Bot):
                     edit your message', delete_after=15)
 
     @admin_only
-    async def cmd_add_reply(self, guild, author, certain_text, reply_message):
+    async def cmd_add_reply(self, guild, certain_text, reply_message):
         """
         Usage:
             {command_prefix}add_reply certain_text reply_message
@@ -1243,7 +1242,7 @@ class Kanobot(Bot):
 
         self.reply_message[str(guild.id)][certain_text].append(reply_message)
         self.jsonIO.save(self.config.reply_file, self.reply_message)
-        return Response('Reply successfully added!', delete_after=15)
+        return Response(f'{certain_text} Reply successfully added!', reply=True, embed=False)
 
     @admin_only
     async def cmd_remove_reply(self, guild, certain_text):
@@ -1258,8 +1257,9 @@ class Kanobot(Bot):
 
         del self.reply_message[str(guild.id)][certain_text]
         self.jsonIO.save(self.config.reply_file, self.reply_message)
-        return Response('Reply successfully deleted!', delete_after=15)
+        return Response('Reply successfully deleted!', delete_after=15, embed=False)
 
+    @admin_only
     async def cmd_show_reply(self, guild, certain_text=None):
         """
         Usage:
@@ -1282,4 +1282,21 @@ class Kanobot(Bot):
                 for index, _item in enumerate(item):
                     text += f"{index+1}. {_item}\n"
 
-        return Response(text, reply=True)
+        return Response(text)
+
+    @owner_only
+    async def cmd_change_presence(self, activity=None):
+        """
+        Usage:
+            {command_prefix}change_presence "{command_prefix}help to view commands."
+        """
+        game = discord.Game(activity)
+        await self.change_presence(status=None, activity=game)
+        return Response('success change presence!', delete_after=10, embed=False)
+
+    async def cmd_ping(self):
+        """
+        Usage:
+            {command_prefix}ping
+        """
+        return Response('pong!', embed=False)
