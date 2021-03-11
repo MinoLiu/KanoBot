@@ -435,10 +435,15 @@ class Bot(discord.Client):
         command = command[len(self.config.command_prefix):].lower().strip()
         handler = getattr(self, 'cmd_' + command, None)
         if not handler:
-            message_content = message_content[len(self.config.command_prefix):]
-            if self.reply_message.get(str(message.guild.id), None) and message_content in self.reply_message[str(message.guild.id)].keys():
+            if self.reply_message.get(str(message.guild.id), None) and command in self.reply_message[str(message.guild.id)].keys():
                 LOG.info("{0.id}/{0!s}: {1}".format(message.author, message_content.replace('\n', '\n... ')))
-                await self.safe_send_message(message.channel, random.choice(self.reply_message[str(message.guild.id)][message_content]))
+                rtv_msg = random.choice(self.reply_message[str(message.guild.id)][command])
+                try:
+                    rtv_msg = rtv_msg.format(*args) if len(args) > 0 else rtv_msg
+                    rtv_msg = rtv_msg.replace('{}', '').strip()
+                    await self.safe_send_message(message.channel, rtv_msg)
+                except Exception:
+                    pass
             return
 
         private_msg_list = ['joinserver', 'setavatar', 'restart', 'help', 'rps']
@@ -1225,17 +1230,21 @@ class Kanobot(Bot):
         """
         Usage:
             {command_prefix}add_reply certain_text reply_message
-        Reply when text show up
+        Reply message when text sent
         example:
            {command_prefix}add_reply lol :joy:
                 A: !lol
                 bot: :joy:
             {command_prefix}add_reply lol "@user :neko_3:"
-                A: !~~lol~~, :neko_2: :neko_3:
-                bot: @user :neko_3:
+
+            {command_prefix}add_reply ㄐㄐ "{{}} ㄐㄐ"
+                A: !ㄐㄐ @user
+                bot: @user ㄐㄐ
         """
         if not self.reply_message.get(str(guild.id), None):
             self.reply_message[str(guild.id)] = {}
+
+        certain_text = certain_text.lower().strip()
 
         if not self.reply_message[str(guild.id)].get(certain_text, None):
             self.reply_message[str(guild.id)][certain_text] = []
@@ -1245,17 +1254,29 @@ class Kanobot(Bot):
         return Response(f'{certain_text} Reply successfully added!', reply=True, embed=False)
 
     @admin_only
-    async def cmd_remove_reply(self, guild, certain_text):
+    async def cmd_remove_reply(self, guild, certain_text, msg_you_want_to_delete=None):
         """
         Usage:
             {command_prefix}remove_reply certain_text
+            {command_prefix}remove_reply certain_text msg_you_want_to_delete
         example:
            {command_prefix}remove_reply lol
+           {command_prefix}remove_reply lol msg_you_want_to_delete
         """
+
+        certain_text = certain_text.lower().strip()
+
         if not self.reply_message.get(str(guild.id), None) or not self.reply_message[str(guild.id)].get(certain_text, None):
             return Response('Not found')
 
-        del self.reply_message[str(guild.id)][certain_text]
+        if msg_you_want_to_delete is None:
+            del self.reply_message[str(guild.id)][certain_text]
+        else:
+            try:
+                self.reply_message[str(guild.id)][certain_text].remove(msg_you_want_to_delete)
+            except Exception:
+                return Response('Not found')
+
         self.jsonIO.save(self.config.reply_file, self.reply_message)
         return Response('Reply successfully deleted!', delete_after=15, embed=False)
 
@@ -1275,6 +1296,9 @@ class Kanobot(Bot):
         if not self.reply_message.get(str(guild.id), None):
             return Response("Nothing here")
         text = "\n"
+
+        certain_text = certain_text.lower().strip()
+
         for key, item in self.reply_message[str(guild.id)].items():
             if certain_text is None:
                 text += f"{key}\n"
