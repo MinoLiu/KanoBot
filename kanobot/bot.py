@@ -1296,8 +1296,9 @@ class Kanobot(Bot):
         if not self.reply_message.get(str(guild.id), None):
             return Response("Nothing here")
         text = "\n"
-
-        certain_text = certain_text.lower().strip()
+        
+        if isinstance(certain_text, str):
+            certain_text = certain_text.lower().strip()
 
         for key, item in self.reply_message[str(guild.id)].items():
             if certain_text is None:
