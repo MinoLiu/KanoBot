@@ -427,8 +427,8 @@ class Bot(discord.Client):
         if not message_content.startswith(self.config.command_prefix):
             return
 
-        if message.author == self.user:
-            LOG.warning("Ignoring command from myself")
+        if message.author == self.user or message.author.bot:
+            LOG.warning("Ignoring command from myself or bot")
             return
 
         command, *args = shlex.split(message_content)
@@ -1296,7 +1296,7 @@ class Kanobot(Bot):
         if not self.reply_message.get(str(guild.id), None):
             return Response("Nothing here")
         text = "\n"
-        
+
         if isinstance(certain_text, str):
             certain_text = certain_text.lower().strip()
 
