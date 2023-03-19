@@ -85,7 +85,7 @@ class MyStreamingClient(StreamingClient):
 
             wh_url = dataDiscord['webhook_url']
             url = "https://twitter.com/" + \
-                name + \
+                username + \
                 "/status/" + twitterid
             Thread(target=webhook_post, args=(wh_url, {'username': name, 'avatar_url': profile_image_url, 'content': url})).start()
         return True
