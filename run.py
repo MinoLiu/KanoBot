@@ -18,10 +18,8 @@ sh.setLevel(logging.INFO)
 LOG.addHandler(sh)
 
 tfh = logging.StreamHandler(stream=TMPFILE)
-tfh.setFormatter(
-    logging.Formatter(fmt="[%(relativeCreated).9f] %(asctime)s \
-    - %(levelname)s - %(name)s: %(message)s")
-)
+tfh.setFormatter(logging.Formatter(fmt="[%(relativeCreated).9f] %(asctime)s \
+    - %(levelname)s - %(name)s: %(message)s"))
 tfh.setLevel(logging.DEBUG)
 LOG.addHandler(tfh)
 
@@ -37,8 +35,8 @@ def finalize_logging():
             if os.path.isfile("logs/bot.log.last"):
                 os.unlink("logs/bot.log.last")
             os.rename("logs/bot.log", "logs/bot.log.last")
-        except:
-            pass
+        except Exception as ex:
+            LOG.info(ex)
 
     if os.path.isfile("logs/kanobot.log"):
         LOG.info("Moving old kanobot log")
@@ -46,8 +44,8 @@ def finalize_logging():
             if os.path.isfile("logs/kanobot.log.last"):
                 os.unlink("logs/kanobot.log.last")
             os.rename("logs/kanobot.log", "logs/kanobot.log.last")
-        except:
-            pass
+        except Exception as ex:
+            LOG.info(ex)
 
     with open("logs/bot.log", 'w', encoding='utf8') as file_:
         TMPFILE.seek(0)

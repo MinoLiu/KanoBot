@@ -17,9 +17,8 @@ from datetime import datetime
 from functools import wraps
 from textwrap import dedent
 
-from tweepy.api import API
-from .twitter import StdOutListener, StdOutStream
-
+from .twitter import MyStreamingClient
+from tweepy import Client as TwitterClient, StreamRule
 from . import exceptions
 from .config import Config, ConfigDefaults
 from .constructs import Response
@@ -57,14 +56,17 @@ class Bot(discord.Client):
         self.init_ok = False
         self.timeout = self.config.timeout
         self.twitter = None
-        self.twitter_listener = None
         self.twitter_stream = None
         self.role_manager = self.jsonIO.get(self.config.role_manager_file)
         self.reply_message = self.jsonIO.get(self.config.reply_file)
 
         self._setup_logging()
-        super().__init__()
-        self.aiosession = aiohttp.ClientSession(loop=self.loop)
+
+        self._intents = discord.Intents.default()
+        self._intents.members = True
+        self._intents.message_content = True
+
+        super().__init__(intents=self._intents)
         self.http.user_agent += ' Kanobot'
         self.colors = [
             0x7f0000, 0x535900, 0x40d9ff, 0x8c7399, 0xd97b6c, 0xf2ff40, 0x8fb6bf, 0x502d59, 0x66504d, 0x89b359, 0x00aaff, 0xd600e6, 0x401100,
@@ -80,13 +82,7 @@ class Bot(discord.Client):
         except Exception:
             pass
 
-        try:
-            self.aiosession.close()
-        except Exception:
-            pass
-
-        super().__init__()
-        self.aiosession = aiohttp.ClientSession(loop=self.loop)
+        super().__init__(intents=self.intents)
         self.http.user_agent += ' Kanobot'
 
     def _cleanup(self):
@@ -94,16 +90,6 @@ class Bot(discord.Client):
             if self.twitter_stream:
                 self.twitter_stream.disconnect()
             self.loop.run_until_complete(self.logout())
-        except Exception:
-            pass
-
-        pending = asyncio.Task.all_tasks()
-        gathered = asyncio.gather(*pending)
-
-        try:
-            gathered.cancel()
-            self.loop.run_until_complete(gathered)
-            gathered.exception()
         except Exception:
             pass
 
@@ -159,8 +145,8 @@ class Bot(discord.Client):
         """ Provides a basic template for embeds"""
         e = discord.Embed()
         e.colour = random.choice(self.colors)
-        e.set_footer(text='© ({})'.format(self.user.name), icon_url=self.user.avatar_url)
-        e.set_author(name=self.user.name, icon_url=self.user.avatar_url)
+        e.set_footer(text='© ({})'.format(self.user.name), icon_url=self.user.avatar)
+        e.set_author(name=self.user.name, icon_url=self.user.avatar)
         e.timestamp = datetime.utcnow()
         return e
 
@@ -193,10 +179,10 @@ class Bot(discord.Client):
         return discord.utils.oauth_url(self.cached_app_info.id, permissions=permissions, guild=guild)
 
     async def change_kano_avatar(self):
-        kano_obj = self.twitter.get_user('@kano_2525')
-        url = kano_obj.profile_image_url_https.replace("_normal", "")
+        kano_obj = self.twitter.get_user(username='kano_2525', user_fields=["profile_image_url"])
+        url = kano_obj.data.profile_image_url.replace("_normal", "")
         try:
-            async with self.aiosession.get(url, timeout=self.timeout) as res:
+            async with aiohttp.request("GET", url, timeout=aiohttp.ClientTimeout(total=self.timeout)) as res:
                 await self.user.edit(avatar=await res.read())
             LOG.info("Avatar change succeeded")
 
@@ -206,29 +192,43 @@ class Bot(discord.Client):
     async def _scheck_configs(self):
         LOG.debug("Validating config")
         await self.config.async_validate(self)
-        self.config.validate_twitter()
-        if self.config.twitter_auth:
-            self.twitter = API(self.config.twitter_auth)
+        if self.config.twitter_token:
+            self.twitter = TwitterClient(bearer_token=self.config.twitter_token)
             Thread(target=self._start_twitter, daemon=True).start()
             if self.config.enable_change_avatar:
                 await self.change_kano_avatar()
 
     def _start_twitter(self):
         data = self.jsonIO.get(self.config.webhook_file)
-        self.twitter_listener = StdOutListener(data)
-        self.twitter_stream = StdOutStream(self.config.twitter_auth, self.twitter_listener, retry_420=60)
+        self.twitter_stream = MyStreamingClient(self.config.twitter_token, dataD=data)
         while True:
             data = self.jsonIO.get(self.config.webhook_file)
-            self.twitter_listener.reset(data)
+            self.twitter_stream.reset(data)
 
             if data.get('twitter_ids', []):
                 try:
-                    self.twitter_stream.filter(list(set(data.get('twitter_ids'))))
+                    self._sync_twitter_id_rule(data.get('twitter_ids'))
+                    self.twitter_stream.filter(
+                        expansions=["author_id"], user_fields=["username", "id", "profile_image_url"], tweet_fields=["referenced_tweets"]
+                    )
                 except Exception as err:
                     LOG.debug(f"Twitter stream raise Exception {err}")
                     self.twitter_stream.disconnect()
             else:
                 time.sleep(60)
+
+    def _sync_twitter_id_rule(self, twitter_id_list):
+        response = self.twitter_stream.get_rules()
+        rules = response.data
+        if response.meta['result_count'] != 0:
+            self.twitter_stream.delete_rules(rules)
+
+        rules_list = []
+        for id in twitter_id_list:
+            rules_list.append(f"from:{id}")
+
+        if rules_list:
+            self.twitter_stream.add_rules(StreamRule(value=" OR ".join(rules_list)))
 
     async def _reload_twitter(self):
         self.twitter_stream.disconnect()
@@ -305,7 +305,7 @@ class Bot(discord.Client):
 
     async def send_typing(self, destination):
         try:
-            return await destination.trigger_typing()
+            return await destination.typing()
         except discord.Forbidden:
             LOG.warning("Could not send typing to {}, no permission".format(destination))
 
@@ -370,7 +370,7 @@ class Bot(discord.Client):
             LOG.info("  Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
         LOG.info("  Debug Mode: " + ['Disabled', 'Enabled'][self.config.debug_mode])
         LOG.info("  Debug Level: " + self.config.debug_level_str)
-        LOG.info("  Twitter: {}".format("Enabled" if self.config.twitter_auth else "Disabled"))
+        LOG.info("  Twitter: {}".format("Enabled" if self.config.twitter_token else "Disabled"))
         print(flush=True)
 
     async def on_raw_reaction_add(self, event):
@@ -573,7 +573,7 @@ class Bot(discord.Client):
                 await self.safe_delete_message(message, quiet=True)
 
     async def logout(self):
-        return await super().logout()
+        return await self.close()
 
     async def restart(self):
         self.exit_signal = exceptions.RestartSignal
@@ -581,8 +581,7 @@ class Bot(discord.Client):
 
     def run(self):
         try:
-            self.loop.run_until_complete(self.start(*self.config.auth))
-
+            super().run(self.config.auth)
         except discord.errors.LoginFailure:
             # Add if token, else
             raise exceptions.HelpfulError(
@@ -595,7 +594,6 @@ class Bot(discord.Client):
             except Exception:
                 LOG.error("Error in cleanup", exc_info=True)
 
-            self.loop.close()
             # pylint: disable=E0702
             if self.exit_signal:
                 raise self.exit_signal
@@ -777,7 +775,7 @@ class Kanobot(Bot):
             )
 
         try:
-            async with self.aiosession.get(thing, timeout=self.timeout) as res:
+            async with aiohttp.request("GET", thing, timeout=aiohttp.ClientTimeout(total=self.timeout)) as res:
                 await self.user.edit(avatar=await res.read())
 
         except Exception as error:
@@ -844,11 +842,11 @@ class Kanobot(Bot):
 
     @admin_only
     @require_twitter
-    async def cmd_twitter(self, guild, action, name=None, channel_name=None, includeReplyToUser=None, includeUserReply=None, includeRetweet=None):
+    async def cmd_twitter(self, guild, action, name=None, channel_name=None, includeUserReply=None, includeRetweet=None):
         """
         Usage:
             {command_prefix}twitter [+, -, show, reload]
-            {command_prefix}twitter + [name] [channel_name] | boolean [ReplyToUser] [Reply] [Retweet]
+            {command_prefix}twitter + [name] [channel_name] | boolean [Reply] [Retweet]
             {command_prefix}twitter + [name] [channel_name] False True True
             {command_prefix}twitter - [name]
             {command_prefix}twitter show
@@ -869,13 +867,12 @@ class Kanobot(Bot):
             subscribed = []
             for dataD in data['Discord']:
                 if dataD['guild_id'] == guild.id:
-                    user_obj = self.twitter.get_user(dataD['twitter_id'])
-                    subscribed.append(user_obj._json)
+                    user_obj = self.twitter.get_user(id=dataD['twitter_id'])
+                    if user_obj.data:
+                        subscribed.append(user_obj.data)
             text = ''
             for user in subscribed:
-                text += '{}(@{}) \nhttps://twitter.com/{} \n'.format(
-                    user['name'].replace('_', r'\_'), user['screen_name'].replace('_', r'\_'), user['screen_name']
-                )
+                text += '{}(@{}) \nhttps://twitter.com/{} \n'.format(user.name, user.username, user.username)
             if text == '':
                 return Response('No subscribed users!')
             else:
@@ -884,11 +881,6 @@ class Kanobot(Bot):
         if action == 'reload':
             await self._reload_twitter()
             return Response(':ok_hand:\n Twitter Disconnected, It will reconnect in few minutes!')
-
-        if includeReplyToUser and str(includeReplyToUser).lower()[0] == 't':
-            includeReplyToUser = True
-        else:
-            includeReplyToUser = False
 
         if includeUserReply and str(includeUserReply).lower()[0] == 't':
             includeUserReply = True
@@ -901,9 +893,10 @@ class Kanobot(Bot):
             includeRetweet = False
 
         try:
-            user_obj = self.twitter.get_user(name)
+            user_obj = self.twitter.get_user(username=name, user_fields=["id"])
+            user = user_obj.data
         except Exception:
-            return Response('Invalid twitter id, name. e.g. @kano_2525 or kano_2525', reply=True)
+            return Response('Invalid twitter id, name. e.g. kano_2525', reply=True)
 
         data = self.jsonIO.get(self.config.webhook_file)
         if not data.get('Discord', None):
@@ -918,12 +911,12 @@ class Kanobot(Bot):
             if subscribe['guild_id'] != guild.id:
                 continue
 
-            if subscribe['twitter_id'] == user_obj.id_str:
+            if user and subscribe['twitter_id'] == str(user.id):
                 subscribed = subscribe
 
         if action == '+':
             if subscribed:
-                return Response('Already subscribed \n{}\n'.format(user_obj.name))
+                return Response('Already subscribed \n{}\n'.format(user.name))
 
             if not channel_name or (len(channel_name) > 32 or len(channel_name) < 2):
                 return Response('Invalid channel name, Must be between 2 and 32 in length', reply=True, delete_after=20)
@@ -950,18 +943,17 @@ class Kanobot(Bot):
                 'channel_id': channel.id,
                 'webhook_url': webhook_obj.url,
                 'webhook_id': webhook_obj.id,
-                'twitter_id': user_obj.id_str,
-                'twitter_name': user_obj.screen_name,
-                'includeReplyToUser': includeReplyToUser,
+                'twitter_id': str(user.id),
+                'twitter_name': user.username,
                 'includeUserReply': includeUserReply,
                 'includeRetweet': includeRetweet
             })
-            data['twitter_ids'].append(user_obj.id_str)
+            data['twitter_ids'].append(str(user.id))
             data['twitter_ids'] = data['twitter_ids']
             self.jsonIO.save(self.config.webhook_file, data)
         else:
             if not subscribed:
-                return Response('{} did not subscribe'.format(user_obj.name))
+                return Response('{} did not subscribe'.format(user.name if user else name))
             data['Discord'].remove(subscribed)
             data['twitter_ids'].remove(subscribed['twitter_id'])
             self.jsonIO.save(self.config.webhook_file, data)
@@ -972,7 +964,7 @@ class Kanobot(Bot):
                 raise exceptions.CommandError('Delete channel failed', expire_in=20)
 
         await self._reload_twitter()
-        return Response("{} :ok_hand:\n\n{}\n".format("Subscribe" if action == '+' else "Unsubscribe", user_obj.name))
+        return Response("{} :ok_hand:\n\n{}\n".format("Subscribe" if action == '+' else "Unsubscribe", user.name))
 
     @admin_only
     async def cmd_kick(self, user_mentions):

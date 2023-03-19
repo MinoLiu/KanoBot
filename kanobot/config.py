@@ -4,8 +4,6 @@ import configparser
 import shutil
 import logging
 
-from tweepy import OAuthHandler
-
 from .exceptions import HelpfulError
 
 LOG = logging.getLogger(__name__)
@@ -32,8 +30,7 @@ class Config:
         self._confpreface = "An error has occured reading the config:\n"
         self._confpreface2 = "An error has occured validating the config:\n"
 
-        self.auth = ()
-        self.twitter_auth = None
+        self.auth = None
 
         self._login_token = config.get('Credentials', 'Token', fallback=ConfigDefaults.token)
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
@@ -48,10 +45,7 @@ class Config:
         self.delete_messages = config.getboolean('Bot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
         self.delete_invoking = config.getboolean('Bot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
         self.timeout = config.getfloat('Bot', 'Timeout', fallback=ConfigDefaults.timeout)
-        self.consumer_key = config.get('Bot', 'ConsumerKey', fallback=ConfigDefaults.consumer_key)
-        self.consumer_secret = config.get('Bot', 'ConsumerSecret', fallback=ConfigDefaults.consumer_secret)
-        self.access_token = config.get('Bot', 'AccessToken', fallback=ConfigDefaults.access_token)
-        self.access_token_secret = config.get('Bot', 'AccessTokenSecret', fallback=ConfigDefaults.access_token_secret)
+        self.twitter_token = config.get('Bot', 'TwitterBearerToken', fallback=ConfigDefaults.twitter_token)
         self.enable_change_avatar = config.get('Bot', 'EnableChangeAvatar', fallback=ConfigDefaults.enable_change_avatar)
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.banned_file = config.get('Files', 'BannedFile', fallback=ConfigDefaults.banned_file)
@@ -69,7 +63,7 @@ class Config:
             raise HelpfulError("No login credentials were specified in the config.", "Please fill in the Token field.", preface=self._confpreface)
 
         else:
-            self.auth = (self._login_token,)
+            self.auth = self._login_token
 
         if self.owner_id:
             if self.owner_id.isdigit():
@@ -151,21 +145,6 @@ class Config:
             )
         self.dev_ids.add(self.owner_id)
 
-    def validate_twitter(self):
-        try:
-            auth = OAuthHandler(self.consumer_key, self.consumer_secret)
-            auth.set_access_token(self.access_token, self.access_token_secret)
-            username = auth.get_username()
-            self.twitter_auth = auth if username else None
-        except Exception:
-            if self.consumer_key and self.consumer_secret and self.access_token and self.access_token_secret:
-                LOG.warning("Your Twitter token is invalid or you've used the wrong credentials.")
-                LOG.warning(
-                    "Please check consumer_key, consumer_secret, access_token, \
-                    access_token_secret at https://apps.twitter.com"
-                )
-            self.twitter_auth = None
-
     def find_config(self):
         """ TODO """
         config = configparser.ConfigParser(interpolation=None)
@@ -228,10 +207,7 @@ class ConfigDefaults:
     block_channels = set()
     delete_invoking = False
     delete_messages = True
-    consumer_key = None
-    consumer_secret = None
-    access_token = None
-    access_token_secret = None
+    twitter_token = None
     enable_change_avatar = False
 
     blacklist_file = 'config/blacklist.txt'

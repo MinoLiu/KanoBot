@@ -7,9 +7,7 @@ import logging
 from time import gmtime, strftime
 from threading import Thread
 
-from tweepy.streaming import StreamListener
-from tweepy.api import API
-from tweepy import Stream
+from tweepy import StreamingClient
 
 LOG = logging.getLogger(__name__)
 
@@ -33,67 +31,63 @@ def webhook_post(url, data):
             else:
                 LOG.warning('{}\n{}\n{}\n'.format(str(result.text), type(result.text), result.text))
         except Exception:
-            LOG.warning(
-                'Unhandled Error! Look into this {}\n{}\n{}\n'.format(str(result.text), type(result.text), result.text)
-            )
+            LOG.warning('Unhandled Error! Look into this {}\n{}\n{}\n'.format(str(result.text), type(result.text), result.text))
 
 
-class StdOutListener(StreamListener):
+class MyStreamingClient(StreamingClient):
 
-    def __init__(self, dataD, api=None):
-        self.api = api or API()
+    def __init__(self, bearer_token, dataD):
+        super().__init__(bearer_token, wait_on_rate_limit=True)
         self.dataD = dataD
 
     def reset(self, dataD):
         self.dataD = dataD
 
-    def on_status(self, status):
+    def on_data(self, rawdata):
         """Called when a new status arrives"""
+        rawdata = json.loads(rawdata.decode('utf-8'))
+        data = rawdata['data']
 
-        data = status._json
+        # Skip not authored by
+        if data['author_id'] not in self.dataD['twitter_ids']:
+            return
 
-        if data['user']['id_str'] not in self.dataD['twitter_ids']:
-            return True
+        user = rawdata['includes']['users'][0]
+        name = user['name']
+        profile_image_url = user['profile_image_url']
+        username = user['username']
+        userid = user['id']
+        twitterid = data['id']
 
-        LOG.info(strftime("[%Y-%m-%d %H:%M:%S]", gmtime()) + " " + data['user']['screen_name'] + ' twittered.')
+        LOG.info(strftime("[%Y-%m-%d %H:%M:%S]", gmtime()) + " " + name + "(" + username + ")" + ' twittered.')
 
         for dataDiscord in self.dataD.get('Discord', []):
-            if data['user']['id_str'] != dataDiscord['twitter_id']:
-                worthPosting = False
-                if 'includeReplyToUser' in dataDiscord:  # other Twitter user tweeting to your followed Twitter user
-                    if dataDiscord['includeReplyToUser'] is True:
-                        if data['in_reply_to_user_id_str'] == dataDiscord['twitter_id']:
-                            worthPosting = True
-            else:
-                worthPosting = True
-                # your followed Twitter users tweeting to random Twitter users
-                # (relevant if you only want status updates/opt out of conversations)
-                if 'includeUserReply' in dataDiscord:
-                    if dataDiscord['includeUserReply'] is False and data['in_reply_to_user_id'] is not None:
-                        worthPosting = False
+            if userid != dataDiscord['twitter_id']:
+                continue
 
-            if 'includeRetweet' in dataDiscord:  # retweets...
-                if dataDiscord['includeRetweet'] is False:
-                    if 'retweeted_status' in data:
+            worthPosting = True
+            # your followed Twitter users tweeting to random Twitter users
+            # (relevant if you only want status updates/opt out of conversations)
+
+            if 'referenced_tweets' in data:
+                # This Tweet is a reply
+                if data['referenced_tweets']['type'] == 'replied_to':
+                    if not dataDiscord['includeUserReply']:
+                        worthPosting = False
+                # This Tweet is a Retweet
+                if data['referenced_tweets']['type'] == 'retweeted':
+                    if not dataDiscord['includeRetweet']:
                         worthPosting = False  # retweet
+                # type == 'quoted' Tweet is a Retweet with reply
 
             if not worthPosting:
                 continue
 
             wh_url = dataDiscord['webhook_url']
-            username = data['user']['name']
-            avatar_url = data['user']['profile_image_url']
-
             url = "https://twitter.com/" + \
-                data['user']['screen_name'] + \
-                "/status/" + str(data['id_str'])
-            Thread(
-                target=webhook_post, args=(wh_url, {
-                    'username': username,
-                    'avatar_url': avatar_url,
-                    'content': url
-                })
-            ).start()
+                name + \
+                "/status/" + twitterid
+            Thread(target=webhook_post, args=(wh_url, {'username': name, 'avatar_url': profile_image_url, 'content': url})).start()
         return True
 
     def on_connect(self):
@@ -108,14 +102,7 @@ class StdOutListener(StreamListener):
 
     def on_error(self, status_code):
         """Called when a non-200 status code is returned"""
-        LOG.warning(
-            strftime("[%Y-%m-%d %H:%M:%S]", gmtime()) + f' Twitter stream on error({status_code}) retry in few second.'
-        )
-        return
-
-    def on_timeout(self):
-        """Called when stream connection times out"""
-        LOG.warning(strftime("[%Y-%m-%d %H:%M:%S]", gmtime()) + ' Twitter stream connection times out')
+        LOG.warning(strftime("[%Y-%m-%d %H:%M:%S]", gmtime()) + f' Twitter stream on error({status_code}) retry in few second.')
         return
 
     def keep_alive(self):
@@ -126,15 +113,4 @@ class StdOutListener(StreamListener):
     def on_exception(self, exception):
         """Called when an unhandled exception occurs."""
         LOG.debug(strftime("[%Y-%m-%d %H:%M:%S]", gmtime()) + exception)
-        return
-
-
-class StdOutStream(Stream):
-
-    def __init__(self, auth, listener, **options):
-        super().__init__(auth, listener, **options)
-
-    def on_closed(self, resp):
-        """ Called when the response has been closed by Twitter """
-        LOG.warning(strftime("[%Y-%m-%d %H:%M:%S]", gmtime()) + ' Twitter stream has been closed by Twitter')
         return

@@ -5,7 +5,7 @@ name = "pypi"
 
 [dev-packages]
 pylint = "*"
-"flake8" = "*"
+flake8 = "*"
 yapf = "*"
 
 [requires]
