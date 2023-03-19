@@ -47,16 +47,10 @@ Token = bot_token
 
 ```ini
 ; Enable twitter webhook
-; Go to https://apps.twitter.com
-; Input ConsumerKey and ConsumerSecret
-; AccessToken and AccessTokenSecret
-ConsumerKey =
-
-ConsumerSecret =
-
-AccessToken =
-
-AccessTokenSecret =
+; Go to https://developer.twitter.com/en/portal/projects-and-apps
+; Setup project and link app
+; Input BearerToken
+TwitterBearerToken = 
 ```
 
 ## Run

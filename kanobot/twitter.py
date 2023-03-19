@@ -71,11 +71,11 @@ class MyStreamingClient(StreamingClient):
 
             if 'referenced_tweets' in data:
                 # This Tweet is a reply
-                if data['referenced_tweets']['type'] == 'replied_to':
+                if data['referenced_tweets'][0]['type'] == 'replied_to':
                     if not dataDiscord['includeUserReply']:
                         worthPosting = False
                 # This Tweet is a Retweet
-                if data['referenced_tweets']['type'] == 'retweeted':
+                if data['referenced_tweets'][0]['type'] == 'retweeted':
                     if not dataDiscord['includeRetweet']:
                         worthPosting = False  # retweet
                 # type == 'quoted' Tweet is a Retweet with reply
