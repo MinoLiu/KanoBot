@@ -534,9 +534,7 @@ class Bot(discord.Client):
 
                 if response.reply:
                     if isinstance(content, discord.Embed):
-                        content.description = '{} {}'.format(
-                            message.author.mention, content.description if content.description is not discord.Embed.Empty else ''
-                        )
+                        content.description = '{} {}'.format(message.author.mention, content.description if content.description is not None else '')
                     else:
                         content = '{}: {}'.format(message.author.mention, content)
 

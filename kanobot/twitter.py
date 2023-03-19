@@ -52,7 +52,8 @@ class MyStreamingClient(StreamingClient):
         if data['author_id'] not in self.dataD['twitter_ids']:
             return
 
-        user = rawdata['includes']['users'][0]
+        users = rawdata['includes']['users']
+        user = users[0]
         name = user['name']
         profile_image_url = user['profile_image_url']
         username = user['username']
@@ -76,6 +77,10 @@ class MyStreamingClient(StreamingClient):
                         worthPosting = False
                 # This Tweet is a Retweet
                 if data['referenced_tweets'][0]['type'] == 'retweeted':
+                    username = users[1]['username']
+                    name = users[1]['name']
+                    profile_image_url = users[1]['profile_image_url']
+                    twitterid = data['referenced_tweets'][0]['id']
                     if not dataDiscord['includeRetweet']:
                         worthPosting = False  # retweet
                 # type == 'quoted' Tweet is a Retweet with reply
