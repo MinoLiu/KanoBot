@@ -25,6 +25,11 @@ from .constructs import Response
 from .constants import DISCORD_MSG_CHAR_LIMIT
 from .jsonIO import JsonIO
 
+<<<<<<< HEAD
+=======
+from PIL import Image, ImageDraw, ImageFont
+import io
+>>>>>>> f0e191a... add reply magic cat image
 LOG = logging.getLogger(__name__)
 
 
@@ -59,6 +64,11 @@ class Bot(discord.Client):
         self.twitter_stream = None
         self.role_manager = self.jsonIO.get(self.config.role_manager_file)
         self.reply_message = self.jsonIO.get(self.config.reply_file)
+<<<<<<< HEAD
+=======
+        self.magic_cat = self.config.magic_cat_file
+        self.font = self.config.font_file
+>>>>>>> f0e191a... add reply magic cat image
 
         self._setup_logging()
 
@@ -1315,3 +1325,48 @@ class Kanobot(Bot):
             {command_prefix}ping
         """
         return Response('pong!', embed=False)
+<<<<<<< HEAD
+=======
+
+
+    @admin_only
+    async def cmd_magic(self, message, guild, certain_text):
+        """
+        Usage:
+            {command_prefix}magic "certain_text"
+            Reply embed "certain_text" magic_cat pic
+            Input can use ',' to new line
+        example:
+            A: {command_prefix}magic "love eat,GG"
+            bot: Reply image embed 
+                        ------------------
+                        -                -
+                        -    love eat,   -
+                        -    GG          - 
+                        ------------------
+        """
+        # open image and front files
+        img = Image.open(self.magic_cat)
+        font = ImageFont.truetype(self.font, 48)
+        draw = ImageDraw.Draw(img)
+        # split input to two string 
+        if (',' in certain_text):
+            str1, str2 = certain_text.split(',', 1)
+        else:
+            str1 = certain_text
+            str2 = ''
+        # position of first string
+        x1 = 455
+        y1 = 400
+        draw.text((x1, y1), str1, font=font, fill=(0, 0, 0))
+        # position of second string
+        x1 = 455
+        y1 = 450
+        draw.text((x1, y1), str2, font=font, fill=(0, 0, 0))
+        
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='PNG')
+        img_byte_arr.seek(0)
+        await message.channel.send(file=discord.File(img_byte_arr, self.magic_cat))
+        
+>>>>>>> f0e191a... add reply magic cat image

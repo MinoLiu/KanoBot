@@ -52,6 +52,11 @@ class Config:
         self.webhook_file = config.get('Files', 'WebhookFile', fallback=ConfigDefaults.webhook_file)
         self.role_manager_file = config.get('Files', 'RoleManagerFile', fallback=ConfigDefaults.role_manager_file)
         self.reply_file = config.get('Files', 'ReplyFile', fallback=ConfigDefaults.reply_file)
+<<<<<<< HEAD
+=======
+        self.magic_cat_file = config.get('Files', 'ImageFile', fallback=ConfigDefaults.magic_cat_file)
+        self.font_file = config.get('Files', 'FontFile', fallback=ConfigDefaults.font_file)
+>>>>>>> f0e191a... add reply magic cat image
 
         self.run_checks()
 
@@ -216,4 +221,10 @@ class ConfigDefaults:
     bind_file = 'config/bind.txt'
     webhook_file = 'config/webhook.json'
     role_manager_file = 'config/role_manager.json'
+<<<<<<< HEAD
     reply_file = 'config/reply_file.json'
+=======
+    reply_file = 'config/reply_file.json'
+    magic_cat_file = 'resources/images/magic_cat.png'
+    font_file = 'resources/fonts/WenQuanYi.ttf'
+>>>>>>> f0e191a... add reply magic cat image
