@@ -37,6 +37,7 @@ class Config:
         self.dev_ids = config.get('Permissions', 'DevIDs', fallback=ConfigDefaults.dev_ids)
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.block_channels = config.get('Chat', 'BlockChannels', fallback=ConfigDefaults.block_channels)
+        self.reply_cooldown = config.getint('Chat', 'ReplyCooldown', fallback=ConfigDefaults.reply_cooldown)
         self.embeds = config.getboolean('Chat', 'Embeds', fallback=ConfigDefaults.embeds)
 
         self.debug_mode = config.getboolean('Bot', 'DebugMode', fallback=ConfigDefaults.debug_mode)
@@ -211,6 +212,7 @@ class ConfigDefaults:
     delete_messages = True
     twitter_token = None
     enable_change_avatar = False
+    reply_cooldown = 0
 
     blacklist_file = 'config/blacklist.txt'
     banned_file = 'config/banned.txt'

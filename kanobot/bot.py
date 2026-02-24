@@ -64,6 +64,7 @@ class Bot(discord.Client):
         self.reply_message = self.jsonIO.get(self.config.reply_file)
         self.magic_cat = self.config.magic_cat_file
         self.font = self.config.font_file
+        self.reply_cooldowns = {}
         
         self._setup_logging()
 
@@ -441,6 +442,11 @@ class Bot(discord.Client):
         handler = getattr(self, 'cmd_' + command, None)
         if not handler:
             if self.reply_message.get(str(message.guild.id), None) and command in self.reply_message[str(message.guild.id)].keys():
+                now = int(time.time())
+                last_time = self.reply_cooldowns.get(message.channel.id, 0)
+                if now - last_time < self.config.reply_cooldown:
+                    return
+                self.reply_cooldowns[message.channel.id] = now
                 LOG.info("{0.id}/{0!s}: {1}".format(message.author, message_content.replace('\n', '\n... ')))
                 rtv_msg = random.choice(self.reply_message[str(message.guild.id)][command])
                 try:
